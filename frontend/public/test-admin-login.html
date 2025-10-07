@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Login Test</h1>
+        
+        <div id="status" class="status info">
+            Ready to login as admin...
+        </div>
+
+        <div>
+            <button onclick="loginAdmin()">Login as Admin</button>
+            <button onclick="testDashboard()">Test Dashboard API</button>
+            <button onclick="clearStorage()">Clear Storage</button>
+            <button onclick="goToDashboard()">Go to Dashboard</button>
+        </div>
+
+        <div id="results">
+            <h3>Results:</h3>
+            <pre id="output"></pre>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function updateOutput(text) {
+            document.getElementById('output').textContent = text;
+        }
+
+        async function loginAdmin() {
+            updateStatus('Logging in as admin...', 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'admin2@example.com',
+                        password: 'Admin123!'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    // Save to localStorage
+                    localStorage.setItem('exam_token', data.data.token);
+                    localStorage.setItem('exam_user', JSON.stringify(data.data.user));
+                    
+                    updateStatus('✅ Admin logged in successfully! Token saved to localStorage.', 'success');
+                    updateOutput(JSON.stringify({
+                        token: data.data.token.substring(0, 50) + '...',
+                        user: {
+                            name: data.data.user.name,
+                            email: data.data.user.email,
+                            role: data.data.user.role
+                        }
+                    }, null, 2));
+                } else {
+                    updateStatus('❌ Login failed', 'error');
+                    updateOutput(JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                updateStatus('❌ Error during login', 'error');
+                updateOutput('Error: ' + error.message);
+            }
+        }
+
+        async function testDashboard() {
+            const token = localStorage.getItem('exam_token');
+            
+            if (!token) {
+                updateStatus('❌ No token found. Please login first.', 'error');
+                return;
+            }
+
+            updateStatus('Testing dashboard API...', 'info');
+
+            try {
+                const response = await fetch(`${API_URL}/users/stats`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateStatus('✅ Dashboard API working!', 'success');
+                    updateOutput('Dashboard Stats:\n' + JSON.stringify(data.data.stats, null, 2));
+                } else {
+                    updateStatus('❌ Dashboard API failed', 'error');
+                    updateOutput(JSON.stringify(data, null, 2));
+                }
+            } catch (error) {
+                updateStatus('❌ Error testing dashboard', 'error');
+                updateOutput('Error: ' + error.message);
+            }
+        }
+
+        function clearStorage() {
+            localStorage.removeItem('exam_token');
+            localStorage.removeItem('exam_user');
+            updateStatus('Storage cleared', 'info');
+            updateOutput('LocalStorage cleared');
+        }
+
+        function goToDashboard() {
+            window.location.href = '/admin/dashboard';
+        }
+
+        // Check if already logged in
+        window.onload = function() {
+            const token = localStorage.getItem('exam_token');
+            const user = localStorage.getItem('exam_user');
+            
+            if (token && user) {
+                const userData = JSON.parse(user);
+                updateStatus(`Already logged in as ${userData.name} (${userData.role})`, 'success');
+                updateOutput('Stored data:\n' + JSON.stringify({
+                    token: token.substring(0, 50) + '...',
+                    user: userData
+                }, null, 2));
+            }
+        };
+    </script>
+</body>
+</html>
