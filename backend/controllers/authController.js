@@ -86,7 +86,9 @@ export const login = asyncHandler(async (req, res) => {
   
   // Update last login
   user.security.lastLogin = new Date();
-  user.stats.loginCount += 1;
+  if (user.security.lastLoginIP) {
+    user.security.lastLoginIP = req.ip || req.connection.remoteAddress;
+  }
   await user.save();
 
   // Generate JWT token
@@ -226,7 +228,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   await user.save();
 
   // Generate new JWT token
-  const jwtToken = user.generateJWT();
+  const jwtToken = user.generateAuthToken();
 
   // Remove sensitive data
   const userResponse = user.toObject();
@@ -289,7 +291,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
   }
 
   // Generate new token
-  const token = user.generateJWT();
+  const token = user.generateAuthToken();
 
   sendSuccessResponse(res, 'Token refreshed successfully', { token });
 });

@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 // Using native HTML datetime-local input instead of Material-UI date pickers
 import Layout from '../../components/layout/Layout.js';
+import DataTable from '../../components/common/DataTable.js';
 import examService from '../../services/examService.js';
 import questionService from '../../services/questionService.js';
 import { toast } from 'react-toastify';
@@ -79,9 +80,11 @@ const Exams = () => {
     try {
       setLoading(true);
       const response = await examService.getAllExams();
-      setExams(response.data);
+      const examsData = response.data.data || response.data || [];
+      setExams(Array.isArray(examsData) ? examsData : []);
     } catch (error) {
       toast.error('Error fetching exams');
+      setExams([]);
     } finally {
       setLoading(false);
     }
@@ -90,18 +93,22 @@ const Exams = () => {
   const fetchQuestions = async () => {
     try {
       const response = await questionService.getAllQuestions();
-      setQuestions(response.data);
+      const questionsData = response.data.data || response.data || [];
+      setQuestions(Array.isArray(questionsData) ? questionsData : []);
     } catch (error) {
       toast.error('Error fetching questions');
+      setQuestions([]);
     }
   };
 
   const fetchSubjects = async () => {
     try {
       const response = await questionService.getSubjects();
-      setSubjects(response.data);
+      const subjectsData = response.data.data || response.data || [];
+      setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
     } catch (error) {
       console.log('Error fetching subjects');
+      setSubjects([]);
     }
   };
 
@@ -232,9 +239,9 @@ const Exams = () => {
     }
   };
 
-  const filteredQuestions = questions.filter(q => 
+  const filteredQuestions = Array.isArray(questions) ? questions.filter(q => 
     !formData.subject || q.subject === formData.subject
-  );
+  ) : [];
 
   return (
     <Layout>
@@ -252,89 +259,22 @@ const Exams = () => {
             </Button>
           </Box>
 
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Title</TableCell>
-                  <TableCell>Subject</TableCell>
-                  <TableCell>Duration</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Start Time</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {exams.map((exam) => (
-                  <TableRow key={exam._id}>
-                    <TableCell>
-                      <Typography variant="subtitle2">
-                        {exam.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {exam.questions.length} questions • {exam.totalMarks} marks
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{exam.subject}</TableCell>
-                    <TableCell>{exam.duration} min</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={exam.status}
-                        color={getStatusColor(exam.status)}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {new Date(exam.startTime).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleOpenDialog(exam)}
-                      >
-                        <Edit />
-                      </IconButton>
-                      
-                      {exam.status === 'draft' && (
-                        <IconButton
-                          size="small"
-                          color="success"
-                          onClick={() => handleStatusChange(exam._id, 'active')}
-                        >
-                          <PlayArrow />
-                        </IconButton>
-                      )}
-                      
-                      {exam.status === 'active' && (
-                        <IconButton
-                          size="small"
-                          color="warning"
-                          onClick={() => handleStatusChange(exam._id, 'completed')}
-                        >
-                          <Stop />
-                        </IconButton>
-                      )}
-                      
-                      <IconButton
-                        size="small"
-                        color="info"
-                      >
-                        <Assessment />
-                      </IconButton>
-                      
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDelete(exam._id)}
-                      >
-                        <Delete />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          {/* Exams Table */}
+          <DataTable
+            data={exams}
+            loading={loading}
+            columns={[
+              { key: 'title', label: 'Title' },
+              { key: 'subject', label: 'Subject' },
+              { key: 'duration', label: 'Duration (min)' },
+              { key: 'status', label: 'Status', type: 'badge' },
+              { key: 'totalMarks', label: 'Total Marks' },
+              { key: 'createdAt', label: 'Created', type: 'date' }
+            ]}
+            onEdit={handleOpenDialog}
+            onDelete={handleDelete}
+            emptyMessage="No exams found. Click 'Create Exam' to create one."
+          />
 
           {/* Exam Dialog */}
           <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>

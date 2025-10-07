@@ -6,19 +6,19 @@ const questionService = {
   },
 
   getQuestion: async (id) => {
-    return await api.get(`/admin/question/${id}`);
+    return await api.get(`/admin/questions/${id}`);
   },
 
   createQuestion: async (questionData) => {
-    return await api.post('/admin/question', questionData);
+    return await api.post('/admin/questions', questionData);
   },
 
   updateQuestion: async (id, questionData) => {
-    return await api.put(`/admin/question/${id}`, questionData);
+    return await api.put(`/admin/questions/${id}`, questionData);
   },
 
   deleteQuestion: async (id) => {
-    return await api.delete(`/admin/question/${id}`);
+    return await api.delete(`/admin/questions/${id}`);
   },
 
   importQuestions: async (file) => {

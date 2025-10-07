@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { Box, CssBaseline } from '@mui/material';
 import Header from './Header.js';
 import Sidebar from './Sidebar.js';
-import { Outlet } from 'react-router-dom';
 
-const Layout = () => {
+const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const toggleSidebar = () => {
@@ -26,7 +25,7 @@ const Layout = () => {
           transition: 'margin 0.3s',
         }}
       >
-        <Outlet />
+        {children}
       </Box>
     </Box>
   );

@@ -31,6 +31,7 @@ import {
   Person
 } from '@mui/icons-material';
 import Layout from '../../components/layout/Layout.js';
+import DataTable from '../../components/common/DataTable.js';
 import adminService from '../../services/adminService.js';
 import { toast } from 'react-toastify';
 
@@ -58,10 +59,13 @@ const Users = () => {
       setLoading(true);
       const response = await adminService.getUsers();
       // Handle the paginated response structure
-      setUsers(response.data.data || response.data || []);
+      const usersData = response.data.data || response.data || [];
+      console.log('Users extracted:', usersData.length, 'users');
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Error fetching users');
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -155,11 +159,11 @@ const Users = () => {
     return status === 'active' ? 'success' : 'default';
   };
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = Array.isArray(users) ? users.filter(user =>
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.role?.toLowerCase().includes(searchTerm.toLowerCase())
+  ) : [];
 
   return (
     <Layout>
@@ -195,69 +199,21 @@ const Users = () => {
           />
         </Box>
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>User</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Registered</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredUsers.map((user) => (
-                <TableRow key={user._id || user.id}>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                        <Person />
-                      </Avatar>
-                      <Typography variant="subtitle2">
-                        {user.name}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={user.role}
-                      color={getRoleColor(user.role)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={user.status}
-                      color={getStatusColor(user.status)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenDialog(user)}
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDelete(user._id || user.id)}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        {/* Users Table */}
+        <DataTable
+          data={filteredUsers}
+          loading={loading}
+          columns={[
+            { key: 'name', label: 'Name' },
+            { key: 'email', label: 'Email' },
+            { key: 'role', label: 'Role', type: 'badge' },
+            { key: 'status', label: 'Status', type: 'badge' },
+            { key: 'createdAt', label: 'Registered', type: 'date' }
+          ]}
+          onEdit={handleOpenDialog}
+          onDelete={handleDelete}
+          emptyMessage="No users found. Click 'Add User' to create one."
+        />
 
         {/* User Dialog */}
         <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>

@@ -41,7 +41,39 @@ router.get('/search',
 // @route   GET /api/users/dashboard
 // @desc    Get user dashboard data
 // @access  Private
-router.get('/dashboard', userController.getUserDashboard);
+router.get('/dashboard', async (req, res) => {
+  // Route dashboard requests based on user role
+  const { user } = req;
+  
+  try {
+    if (user.role === 'student') {
+      const studentDashboardController = (await import('../controllers/student/dashboardController.js')).default;
+      return studentDashboardController.getDashboardStats(req, res);
+    } else if (user.role === 'admin') {
+      const adminUserController = (await import('../controllers/admin/userController.js')).default;
+      return adminUserController.getDashboardOverview(req, res);
+    } else {
+      // Default dashboard for instructors or other roles
+      return res.json({
+        status: 'success',
+        message: 'Dashboard data retrieved successfully',
+        data: {
+          role: user.role,
+          name: user.name,
+          email: user.email
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    return res.status(500).json({
+      status: 'error',
+      message: 'Error retrieving dashboard data',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // @route   GET /api/users/role/:role
 // @desc    Get users by role

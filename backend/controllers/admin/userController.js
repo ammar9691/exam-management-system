@@ -4,6 +4,9 @@
  */
 
 import User from '../../models/User.js';
+import Question from '../../models/Question.js';
+import Exam from '../../models/Exam.js';
+import Result from '../../models/Result.js';
 import {
   sendSuccessResponse,
   sendErrorResponse,
@@ -297,6 +300,109 @@ export const getUserActivity = asyncHandler(async (req, res) => {
   sendSuccessResponse(res, 'User activity retrieved successfully', { activity });
 });
 
+// Get comprehensive dashboard overview
+export const getDashboardOverview = asyncHandler(async (req, res) => {
+  try {
+    // Get user statistics
+    const userStats = await User.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalUsers: { $sum: 1 },
+          activeUsers: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+          students: { $sum: { $cond: [{ $eq: ['$role', 'student'] }, 1, 0] } },
+          instructors: { $sum: { $cond: [{ $eq: ['$role', 'instructor'] }, 1, 0] } },
+          admins: { $sum: { $cond: [{ $eq: ['$role', 'admin'] }, 1, 0] } }
+        }
+      }
+    ]);
+
+    // Get question statistics
+    const questionStats = await Question.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalQuestions: { $sum: 1 },
+          activeQuestions: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+          easyQuestions: { $sum: { $cond: [{ $eq: ['$difficulty', 'easy'] }, 1, 0] } },
+          mediumQuestions: { $sum: { $cond: [{ $eq: ['$difficulty', 'medium'] }, 1, 0] } },
+          hardQuestions: { $sum: { $cond: [{ $eq: ['$difficulty', 'hard'] }, 1, 0] } }
+        }
+      }
+    ]);
+
+    // Get exam statistics
+    const examStats = await Exam.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalExams: { $sum: 1 },
+          activeExams: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+          completedExams: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          draftExams: { $sum: { $cond: [{ $eq: ['$status', 'draft'] }, 1, 0] } }
+        }
+      }
+    ]);
+
+    // Get result statistics
+    const resultStats = await Result.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalResults: { $sum: 1 },
+          completedResults: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          averageScore: { $avg: '$scoring.percentage' },
+          passRate: {
+            $avg: { $cond: [{ $eq: ['$scoring.passed', true] }, 1, 0] }
+          }
+        }
+      }
+    ]);
+
+    // Get monthly registration data
+    const monthlyRegistrations = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: new Date(new Date().getFullYear(), 0, 1) }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 }
+      }
+    ]);
+
+    const stats = {
+      totalUsers: userStats[0]?.totalUsers || 0,
+      activeUsers: userStats[0]?.activeUsers || 0,
+      students: userStats[0]?.students || 0,
+      instructors: userStats[0]?.instructors || 0,
+      admins: userStats[0]?.admins || 0,
+      totalQuestions: questionStats[0]?.totalQuestions || 0,
+      activeQuestions: questionStats[0]?.activeQuestions || 0,
+      totalExams: examStats[0]?.totalExams || 0,
+      activeExams: examStats[0]?.activeExams || 0,
+      totalResults: resultStats[0]?.totalResults || 0,
+      averageScore: Math.round(resultStats[0]?.averageScore || 0),
+      passRate: Math.round((resultStats[0]?.passRate || 0) * 100),
+      monthlyRegistrations
+    };
+
+    sendSuccessResponse(res, 'Dashboard overview retrieved successfully', { stats });
+  } catch (error) {
+    console.error('Dashboard overview error:', error);
+    sendErrorResponse(res, 'Error retrieving dashboard data', 500);
+  }
+});
+
 export default {
   getAllUsers,
   getUserStats,
@@ -306,5 +412,6 @@ export default {
   bulkUpdateUsers,
   resetUserPassword,
   exportUsers,
-  getUserActivity
+  getUserActivity,
+  getDashboardOverview
 };

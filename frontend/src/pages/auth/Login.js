@@ -41,19 +41,24 @@ const Login = () => {
     const result = await login(formData.email, formData.password);
     
     if (result.success) {
-      // Redirect based on role
-      switch (result.user.role) {
-        case 'admin':
-          navigate('/admin/dashboard');
-          break;
-        case 'student':
-          navigate('/student/dashboard');
-          break;
-        case 'instructor':
-          navigate('/instructor/dashboard');
-          break;
-        default:
-          navigate('/');
+      // Check if user exists and has role
+      if (result.user && result.user.role) {
+        // Redirect based on role
+        switch (result.user.role) {
+          case 'admin':
+            navigate('/admin/dashboard');
+            break;
+          case 'student':
+            navigate('/student/dashboard');
+            break;
+          case 'instructor':
+            navigate('/instructor/dashboard');
+            break;
+          default:
+            navigate('/');
+        }
+      } else {
+        setError('Login succeeded but user data is incomplete. Please try again.');
       }
     } else {
       setError(result.error);

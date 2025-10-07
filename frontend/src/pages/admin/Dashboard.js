@@ -91,7 +91,10 @@ const AdminDashboard = () => {
       
       // Handle dashboard stats
       if (dashboardResponse.status === 'fulfilled') {
-        const statsData = dashboardResponse.value.data.data?.stats || {};
+        console.log('Dashboard response:', dashboardResponse.value);
+        console.log('Dashboard response.data:', dashboardResponse.value.data);
+        const statsData = dashboardResponse.value.data?.stats || {};
+        console.log('Extracted statsData:', statsData);
         
         setStats({
           totalUsers: statsData.totalUsers || 0,
@@ -258,6 +261,22 @@ const AdminDashboard = () => {
             {error}
           </Alert>
         )}
+
+        {/* Debug Info */}
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="h6">Dashboard Debug Info</Typography>
+          <div>
+            <p><strong>Total Users:</strong> {stats.totalUsers}</p>
+            <p><strong>Total Questions:</strong> {stats.totalQuestions}</p>
+            <p><strong>Total Exams:</strong> {stats.totalExams}</p>
+            <p><strong>Total Results:</strong> {stats.totalResults}</p>
+            <p><strong>Students:</strong> {stats.students}</p>
+            <p><strong>Instructors:</strong> {stats.instructors}</p>
+            <p><strong>Admins:</strong> {stats.admins}</p>
+            <p><strong>Loading:</strong> {loading ? 'Yes' : 'No'}</p>
+            {error && <p style={{color: 'red'}}><strong>Error:</strong> {error}</p>}
+          </div>
+        </Paper>
 
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>

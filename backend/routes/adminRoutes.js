@@ -81,38 +81,7 @@ router.get('/results/analytics/performance', adminResultController.getPerformanc
 // =================
 // DASHBOARD STATS
 // =================
-router.get('/dashboard/overview', async (req, res) => {
-  try {
-    // Fetch comprehensive dashboard data
-    const [userStats, questionStats, examStats, resultStats] = await Promise.allSettled([
-      adminUserController.getUserStats(req, res),
-      adminQuestionController.getQuestionStats(req, res), 
-      adminExamController.getExamStats(req, res),
-      adminResultController.getResultStats(req, res)
-    ]);
-
-    const dashboardData = {
-      users: userStats.status === 'fulfilled' ? userStats.value : null,
-      questions: questionStats.status === 'fulfilled' ? questionStats.value : null,
-      exams: examStats.status === 'fulfilled' ? examStats.value : null,
-      results: resultStats.status === 'fulfilled' ? resultStats.value : null
-    };
-
-    res.json({
-      status: 'success',
-      message: 'Dashboard overview retrieved successfully',
-      data: dashboardData,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to fetch dashboard overview',
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+router.get('/dashboard/overview', adminUserController.getDashboardOverview);
 
 // =================
 // SYSTEM ANALYTICS

@@ -5,14 +5,6 @@ import {
   Typography,
   Box,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
-  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -25,12 +17,11 @@ import {
 } from '@mui/material';
 import {
   Add,
-  Edit,
-  Delete,
-  Upload,
-  Search
+  Upload
 } from '@mui/icons-material';
 import Layout from '../../components/layout/Layout.js';
+import DataTable from '../../components/common/DataTable.js';
+import DebugInfo from '../../components/common/DebugInfo.js';
 import questionService from '../../services/questionService.js';
 import { toast } from 'react-toastify';
 
@@ -61,10 +52,23 @@ const Questions = () => {
   const fetchQuestions = async () => {
     try {
       setLoading(true);
+      console.log('Fetching questions...');
       const response = await questionService.getAllQuestions();
-      setQuestions(response.data);
+      console.log('Raw API response:', response);
+      console.log('response.data:', response.data);
+      console.log('response.data.data:', response.data.data);
+      
+      // Extract questions array directly from response.data.data
+      const questionsData = response.data.data || response.data || [];
+      console.log('Extracted questionsData:', questionsData);
+      console.log('Is questionsData an array?', Array.isArray(questionsData));
+      
+      setQuestions(Array.isArray(questionsData) ? questionsData : []);
+      console.log('Set questions state to:', questionsData.length, 'items');
     } catch (error) {
+      console.error('Error fetching questions:', error);
       toast.error('Error fetching questions');
+      setQuestions([]); // Set empty array as fallback
     } finally {
       setLoading(false);
     }
@@ -198,52 +202,25 @@ const Questions = () => {
           </Box>
         </Box>
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Question</TableCell>
-                <TableCell>Subject</TableCell>
-                <TableCell>Topic</TableCell>
-                <TableCell>Difficulty</TableCell>
-                <TableCell>Marks</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {questions.map((question) => (
-                <TableRow key={question._id}>
-                  <TableCell>{question.question.substring(0, 50)}...</TableCell>
-                  <TableCell>{question.subject}</TableCell>
-                  <TableCell>{question.topic}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={question.difficulty}
-                      color={getDifficultyColor(question.difficulty)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{question.marks}</TableCell>
-                  <TableCell>
-                    <IconButton
-                      size="small"
-                      onClick={() => handleOpenDialog(question)}
-                    >
-                      <Edit />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDelete(question._id)}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        {/* Debug Info */}
+        <DebugInfo title="Questions Debug" data={questions} />
+        
+        {/* Questions Table */}
+        <DataTable
+          data={questions}
+          loading={loading}
+          columns={[
+            { key: 'question', label: 'Question', type: 'truncate' },
+            { key: 'subject', label: 'Subject' },
+            { key: 'topic', label: 'Topic' },
+            { key: 'difficulty', label: 'Difficulty', type: 'badge' },
+            { key: 'marks', label: 'Marks' },
+            { key: 'type', label: 'Type' }
+          ]}
+          onEdit={handleOpenDialog}
+          onDelete={handleDelete}
+          emptyMessage="No questions found. Click 'Add Question' to create one."
+        />
 
         {/* Question Dialog */}
         <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>

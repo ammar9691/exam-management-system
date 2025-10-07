@@ -68,6 +68,11 @@ router.post('/logout', authenticate, authController.logout);
 // @access  Private
 router.get('/profile', authenticate, authController.getProfile);
 
+// @route   GET /api/auth/me
+// @desc    Get current user info (alias for profile)
+// @access  Private
+router.get('/me', authenticate, authController.getProfile);
+
 // @route   PUT /api/auth/profile
 // @desc    Update user profile
 // @access  Private
@@ -144,21 +149,7 @@ router.delete('/sessions/:sessionId',
 );
 
 // Optional authentication routes (work with or without token)
-
-// @route   GET /api/auth/me
-// @desc    Get current user info if authenticated, null otherwise
-// @access  Public/Private (optional auth)
-router.get('/me', optionalAuth, (req, res) => {
-  if (req.user) {
-    return authController.getProfile(req, res);
-  }
-  
-  res.json({
-    status: 'success',
-    message: 'No authenticated user',
-    data: { user: null }
-  });
-});
+// The /me route is already defined above with required authentication
 
 // Route parameter validation middleware
 router.param('token', (req, res, next, token) => {

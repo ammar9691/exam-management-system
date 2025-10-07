@@ -6,31 +6,31 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Context
-import { AuthProvider } from './context/AuthContext.js';
+import { AuthProvider } from './context/AuthContext';
 
 // Components
-import ProtectedRoute from './components/auth/ProtectedRoute.js';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 // Auth Pages
-import Login from './pages/auth/Login.js';
-import Register from './pages/auth/Register.js';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
 
 // Admin Pages
-import AdminDashboard from './pages/admin/Dashboard.js';
-import AdminUsers from './pages/admin/Users.js';
-import AdminQuestions from './pages/admin/Questions.js';
-import AdminExams from './pages/admin/Exams.js';
-import AdminResults from './pages/admin/Results.js';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsers from './pages/admin/Users';
+import AdminQuestions from './pages/admin/Questions';
+import AdminExams from './pages/admin/Exams';
+import AdminResults from './pages/admin/Results';
 
 // Student Pages
-import StudentDashboard from './pages/student/Dashboard.js';
-import StudentExams from './pages/student/Exams.js';
-import TakeExam from './pages/student/TakeExam.js';
-import StudentResults from './pages/student/Results.js';
+import StudentDashboard from './pages/student/Dashboard';
+import StudentExams from './pages/student/Exams';
+import TakeExam from './pages/student/TakeExam';
+import StudentResults from './pages/student/Results';
 
 // Common Pages
-import NotFound from './pages/NotFound.js';
-import Unauthorized from './pages/Unauthorized.js';
+import NotFound from './pages/NotFound';
+import Unauthorized from './pages/Unauthorized';
 
 // Theme
 const theme = createTheme({

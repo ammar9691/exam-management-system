@@ -191,6 +191,11 @@ userSchema.methods.generateAuthToken = function() {
   );
 };
 
+// Alias for consistency
+userSchema.methods.generateJWT = function() {
+  return this.generateAuthToken();
+};
+
 // Method to handle failed login attempts
 userSchema.methods.incLoginAttempts = function() {
   // If we have a previous lock that has expired, restart at 1

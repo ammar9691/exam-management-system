@@ -11,6 +11,7 @@ import examRoutes from './exams.js';
 import subjectRoutes from './subjects.js';
 import resultRoutes from './results.js';
 import adminRoutes from './adminRoutes.js';
+import studentRoutes from './studentRoutes.js';
 import { serveUploadedFile } from '../utils/upload.js';
 
 const router = express.Router();
@@ -53,6 +54,7 @@ router.use('/exams', examRoutes);
 router.use('/subjects', subjectRoutes);
 router.use('/results', resultRoutes);
 router.use('/admin', adminRoutes);
+router.use('/student', studentRoutes);
 
 // Serve uploaded files
 router.get('/uploads/*', serveUploadedFile);

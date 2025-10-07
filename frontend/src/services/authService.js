@@ -5,21 +5,29 @@ const authService = {
   // Login
   login: async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
-    if (response.data.data.token) {
-      localStorage.setItem(STORAGE_KEYS.TOKEN, response.data.data.token);
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.data.data.user));
+    console.log('Auth login response:', response);
+    console.log('response.data:', response.data);
+    
+    // Check both possible response structures
+    const authData = response.data.data || response.data;
+    console.log('Extracted auth data:', authData);
+    
+    if (authData?.token) {
+      localStorage.setItem(STORAGE_KEYS.TOKEN, authData.token);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authData.user));
     }
-    return response.data.data;
+    return authData;
   },
 
   // Register
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
-    if (response.data.data.token) {
-      localStorage.setItem(STORAGE_KEYS.TOKEN, response.data.data.token);
-      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.data.data.user));
+    const authData = response.data.data || response.data;
+    if (authData?.token) {
+      localStorage.setItem(STORAGE_KEYS.TOKEN, authData.token);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authData.user));
     }
-    return response.data.data;
+    return authData;
   },
 
   // Logout
@@ -32,14 +40,17 @@ const authService = {
   // Get current user
   getCurrentUser: async () => {
     const response = await api.get('/auth/me');
-    return response.data.data || response.data;
+    return response.data.data?.user || response.data.user || response.data;
   },
 
   // Update profile
   updateProfile: async (userData) => {
     const response = await api.put('/auth/profile', userData);
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(response.data.data.user));
-    return response.data.data;
+    const user = response.data.data?.user || response.data.user;
+    if (user) {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+    }
+    return response.data.data || response.data;
   },
 
   // Change password

@@ -36,13 +36,11 @@ const adminService = {
 
         return {
           data: {
-            data: {
-              stats: {
-                ...userStats,
-                totalQuestions: questionStats.totalQuestions || 0,
-                totalExams: examStats.totalExams || 0,
-                totalResults: resultStats.totalResults || 0
-              }
+            stats: {
+              ...userStats,
+              totalQuestions: questionStats.totalQuestions || 0,
+              totalExams: examStats.totalExams || 0,
+              totalResults: resultStats.totalResults || 0
             }
           }
         };
@@ -50,17 +48,15 @@ const adminService = {
         console.error('Fallback also failed:', fallbackError);
         return {
           data: {
-            data: {
-              stats: {
-                totalUsers: 0,
-                totalQuestions: 0,
-                totalExams: 0,
-                totalResults: 0,
-                activeUsers: 0,
-                students: 0,
-                instructors: 0,
-                admins: 0
-              }
+            stats: {
+              totalUsers: 0,
+              totalQuestions: 0,
+              totalExams: 0,
+              totalResults: 0,
+              activeUsers: 0,
+              students: 0,
+              instructors: 0,
+              admins: 0
             }
           }
         };
