@@ -11,11 +11,6 @@ import path from 'path';
 import json2csv from 'json2csv';
 import Question from '../../models/Question.js';
 import { asyncHandler } from '../../middleware/error.js';
-import {
-  sendSuccessResponse,
-  sendErrorResponse,
-  sendValidationErrorResponse
-} from '../../utils/response.js';
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -62,10 +57,15 @@ export const upload = multer({
 const parseCSVRow = (row, rowIndex, subject, difficulty = 'easy') => {
   const errors = [];
   const warnings = [];
+  
+  // Quick validation check
+  console.log(`parseCSVRow - Row ${rowIndex + 1}: Processing '${row.Question?.substring(0, 30)}...' (${difficulty})`);
+  
 
   // Required fields validation
   if (!row.Question || row.Question.trim() === '') {
     errors.push(`Row ${rowIndex + 1}: Question text is required`);
+    console.log(`parseCSVRow - Error: Missing question text for row ${rowIndex + 1}`);
   }
 
   // Parse options - exactly 3 options (A, B, C)
@@ -121,14 +121,22 @@ const parseCSVRow = (row, rowIndex, subject, difficulty = 'easy') => {
 // Import questions from CSV
 export const importQuestionsFromCSV = asyncHandler(async (req, res) => {
   if (!req.file) {
-    return sendErrorResponse(res, 'Please upload a CSV or Excel file', 400);
+    return res.status(400).json({
+      status: 'error',
+      message: 'Please upload a CSV or Excel file',
+      timestamp: new Date().toISOString()
+    });
   }
 
   // Get subject from request body or filename
   const subject = req.body.subject || req.file.originalname.replace(/\.[^/.]+$/, "").replace(/[_-]/g, ' ');
   
   if (!subject || subject.trim() === '') {
-    return sendErrorResponse(res, 'Subject is required. Please provide subject in request or use subject name as filename.', 400);
+    return res.status(400).json({
+      status: 'error',
+      message: 'Subject is required. Please provide subject in request or use subject name as filename.',
+      timestamp: new Date().toISOString()
+    });
   }
 
   const filePath = req.file.path;
@@ -149,7 +157,56 @@ export const importQuestionsFromCSV = asyncHandler(async (req, res) => {
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0]; // Use first sheet
       const worksheet = workbook.Sheets[sheetName];
-      csvData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      
+      // First try to parse as array of arrays to handle the user's format
+      const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      console.log('Raw Excel data - first 3 rows:', rawData.slice(0, 3));
+      
+      // Convert to proper format with correct column mapping
+      csvData = [];
+      let currentDifficultyFromStructure = 'easy';
+      
+      for (let i = 0; i < rawData.length; i++) {
+        const row = rawData[i];
+        
+        // Skip empty rows
+        if (!row || row.length === 0) continue;
+        
+        // Check if this is a difficulty section row (single value like "Easy", "Medium", "Hard")
+        if (row.length === 1 && typeof row[0] === 'string') {
+          const difficulty = row[0].trim().toLowerCase();
+          if (difficulty === 'easy' || difficulty === 'medium' || difficulty === 'hard') {
+            currentDifficultyFromStructure = difficulty;
+            console.log(`Found difficulty section: ${difficulty} at row ${i + 1}`);
+            continue;
+          }
+        }
+        
+        // Check if this is the header row
+        if (row.length >= 6 && row[0] === 'Serial' && row[1] === 'Question') {
+          console.log(`Found header row at row ${i + 1}`);
+          continue;
+        }
+        
+        // Process actual question rows (should have 6 columns)
+        if (row.length >= 6) {
+          const questionRow = {
+            Serial: row[0],
+            Question: row[1],
+            'Option A': row[2],
+            'Option B': row[3], 
+            'Option C': row[4],
+            'Correct Option': row[5],
+            _difficulty: currentDifficultyFromStructure // Store the difficulty for later use
+          };
+          
+          // Only add if it has actual question content
+          if (questionRow.Question && questionRow.Question.trim() !== '' && 
+              questionRow.Question !== 'Question') {
+            csvData.push(questionRow);
+          }
+        }
+      }
     } else {
       // Parse CSV file
       console.log('Parsing CSV file:', filePath);
@@ -173,72 +230,38 @@ export const importQuestionsFromCSV = asyncHandler(async (req, res) => {
         console.log('Second row data:', csvData[1]);
       }
     }
-
-    // Process each row and detect difficulty sections
-    let currentDifficulty = 'easy'; // default
     
+    // Normalize Excel data - Excel might have different column names or extra spaces
+    csvData = csvData.map(row => {
+      const normalizedRow = {};
+      Object.keys(row).forEach(key => {
+        const normalizedKey = key.trim();
+        normalizedRow[normalizedKey] = row[key];
+      });
+      return normalizedRow;
+    });
+
+    // Process each row - difficulty is already determined from Excel structure
     for (let i = 0; i < csvData.length; i++) {
       const row = csvData[i];
       const rowIndex = i;
 
-      // Check if this row indicates a difficulty level (based on Excel format)
-      // In your Excel format, difficulty appears as standalone text in column A
-      const firstColumnValue = row.Serial || Object.values(row)[0] || '';
-      const questionValue = row.Question || '';
+      // Get difficulty from the pre-processed structure
+      const currentDifficulty = row._difficulty || 'easy';
       
-      // Debug logging for each row
-      console.log(`Row ${i + 1}:`, {
-        Serial: row.Serial,
-        Question: row.Question,
-        'Option A': row['Option A'],
-        'Option B': row['Option B'],
-        'Option C': row['Option C'],
-        'Correct Option': row['Correct Option'],
-        firstColumnValue,
-        questionValue
-      });
+      // Debug: Quick row summary
+      console.log(`Row ${i + 1}: Serial='${row.Serial}', Question='${(row.Question || '').substring(0, 30)}${row.Question && row.Question.length > 30 ? '...' : ''}', Difficulty='${currentDifficulty}'`);
       
-      // Check if the first column contains difficulty level text
-      let foundDifficulty = false;
-      if (firstColumnValue && typeof firstColumnValue === 'string') {
-        const cleanValue = firstColumnValue.trim().toLowerCase();
-        if (cleanValue === 'easy' || cleanValue === 'medium' || cleanValue === 'hard') {
-          currentDifficulty = cleanValue;
-          console.log(`Found difficulty section: ${cleanValue} at row ${i + 1}`);
-          foundDifficulty = true;
-        }
-      }
+      // Remove the internal difficulty marker
+      delete row._difficulty;
       
-      // Also check if question column has difficulty (fallback)
-      if (!foundDifficulty && questionValue && typeof questionValue === 'string') {
-        const cleanValue = questionValue.trim().toLowerCase();
-        if (cleanValue === 'easy' || cleanValue === 'medium' || cleanValue === 'hard') {
-          currentDifficulty = cleanValue;
-          console.log(`Found difficulty section in Question column: ${cleanValue} at row ${i + 1}`);
-          foundDifficulty = true;
-        }
-      }
+      // Data is already pre-filtered, so we can process directly
+      console.log(`Processing valid question row ${i + 1}: "${row.Question?.substring(0, 50)}..."`);
       
-      if (foundDifficulty) {
-        continue; // Skip this row as it's just a section header
-      }
-      
-      // Skip empty rows, header rows, or rows that don't have valid question data
-      if (!row.Question || row.Question.trim() === '' || 
-          row.Question.trim().toLowerCase() === 'question' ||
-          row.Serial && row.Serial.toString().toLowerCase() === 'serial') {
-        continue;
-      }
-      
-      // Additional check for header rows
-      const questionText = row.Question.trim().toLowerCase();
-      if (questionText === 'question' || questionText === 'serial' || 
-          questionText.includes('option a') || questionText.includes('correct option')) {
-        continue;
-      }
-
       try {
         const { questionData, errors: rowErrors, warnings: rowWarnings } = parseCSVRow(row, rowIndex, subject, currentDifficulty);
+        
+        console.log(`Parsed question successfully: ${questionData.options?.length || 0} options, difficulty: ${questionData.difficulty}`);
         
         // Collect warnings
         warnings.push(...rowWarnings);
@@ -296,18 +319,19 @@ export const importQuestionsFromCSV = asyncHandler(async (req, res) => {
     };
 
     if (successCount > 0) {
-      sendSuccessResponse(
-        res, 
-        `Import completed. ${successCount} questions imported successfully, ${errorCount} failed.`,
-        responseData
-      );
+      res.json({
+        status: 'success',
+        message: `Import completed. ${successCount} questions imported successfully, ${errorCount} failed.`,
+        data: responseData,
+        timestamp: new Date().toISOString()
+      });
     } else {
-      sendErrorResponse(
-        res, 
-        'Import failed. No questions were imported.',
-        400,
-        responseData
-      );
+      res.status(400).json({
+        status: 'error',
+        message: 'Import failed. No questions were imported.',
+        timestamp: new Date().toISOString(),
+        errors: responseData
+      });
     }
 
   } catch (error) {
@@ -318,7 +342,11 @@ export const importQuestionsFromCSV = asyncHandler(async (req, res) => {
       fs.unlinkSync(filePath);
     }
     
-    sendErrorResponse(res, `Import failed: ${error.message}`, 500);
+    res.status(500).json({
+      status: 'error',
+      message: `Import failed: ${error.message}`,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -372,7 +400,11 @@ export const getImportTemplate = asyncHandler(async (req, res) => {
     res.send(csvData);
   } catch (error) {
     console.error('Template generation error:', error);
-    sendErrorResponse(res, 'Failed to generate template', 500);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to generate template',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -385,8 +417,13 @@ export const getImportHistory = asyncHandler(async (req, res) => {
     .limit(50)
     .select('question subject topic difficulty createdAt');
 
-  sendSuccessResponse(res, 'Recent imports retrieved', {
-    recentQuestions,
-    totalCount: recentQuestions.length
+  res.json({
+    status: 'success',
+    message: 'Recent imports retrieved',
+    data: {
+      recentQuestions,
+      totalCount: recentQuestions.length
+    },
+    timestamp: new Date().toISOString()
   });
 });
