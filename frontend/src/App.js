@@ -28,6 +28,12 @@ import StudentExams from './pages/student/Exams';
 import TakeExam from './pages/student/TakeExam';
 import StudentResults from './pages/student/Results';
 
+// Instructor Pages
+import InstructorDashboard from './pages/instructor/Dashboard';
+import InstructorExams from './pages/instructor/Exams';
+import InstructorStudents from './pages/instructor/Students';
+import ExamMonitor from './pages/instructor/ExamMonitor';
+
 // Common Pages
 import NotFound from './pages/NotFound';
 import Unauthorized from './pages/Unauthorized';
@@ -148,6 +154,40 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['student']}>
                   <StudentResults />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Instructor Routes */}
+            <Route
+              path="/instructor/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <InstructorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/exams"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <InstructorExams />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/students"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <InstructorStudents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/exams/:examId/monitor"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <ExamMonitor />
                 </ProtectedRoute>
               }
             />

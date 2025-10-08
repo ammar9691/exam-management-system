@@ -12,6 +12,7 @@ import subjectRoutes from './subjects.js';
 import resultRoutes from './results.js';
 import adminRoutes from './adminRoutes.js';
 import studentRoutes from './studentRoutes.js';
+import instructorRoutes from './instructor.js';
 import { serveUploadedFile } from '../utils/upload.js';
 
 const router = express.Router();
@@ -40,6 +41,7 @@ router.get('/', (req, res) => {
       subjects: '/api/subjects',
       results: '/api/results',
       admin: '/api/admin',
+      instructor: '/api/instructor',
       uploads: '/uploads'
     },
     documentation: '/api/docs' // TODO: Add API documentation
@@ -55,6 +57,7 @@ router.use('/subjects', subjectRoutes);
 router.use('/results', resultRoutes);
 router.use('/admin', adminRoutes);
 router.use('/student', studentRoutes);
+router.use('/instructor', instructorRoutes);
 
 // Serve uploaded files
 router.get('/uploads/*', serveUploadedFile);

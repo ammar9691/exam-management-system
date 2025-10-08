@@ -40,6 +40,19 @@ const examSchema = new mongoose.Schema({
     required: [true, 'Subject is required'],
     trim: true
   },
+  subjects: [{
+    subject: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    weightage: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 100
+    }
+  }],
   type: {
     type: String,
     enum: ['practice', 'mock', 'final', 'quiz'],

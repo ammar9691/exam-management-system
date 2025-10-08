@@ -23,10 +23,7 @@ export const getAllUsers = asyncHandler(async (req, res) => {
   const options = {
     searchFields: ['name', 'email'],
     allowedFilters: ['role', 'status', 'isEmailVerified', 'createdFrom', 'createdTo'],
-    defaultSort: { createdAt: -1 },
-    populate: [
-      { path: 'createdBy', select: 'name email' }
-    ]
+    defaultSort: { createdAt: -1 }
   };
 
   const result = await getPaginatedResults(User, req, options);

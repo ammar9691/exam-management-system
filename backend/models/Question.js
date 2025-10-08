@@ -27,21 +27,21 @@ const questionSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['multiple-choice', 'true-false', 'fill-in-blank', 'essay'],
+    enum: ['multiple-choice'],
     default: 'multiple-choice',
-    required: true
+    required: true,
+    validate: {
+      validator: function(value) {
+        return value === 'multiple-choice'; // All questions must be MCQ
+      },
+      message: 'All questions must be multiple-choice type'
+    }
   },
   subject: {
     type: String,
     required: [true, 'Subject is required'],
     trim: true,
     maxLength: [100, 'Subject cannot exceed 100 characters']
-  },
-  topic: {
-    type: String,
-    required: [true, 'Topic is required'],
-    trim: true,
-    maxLength: [100, 'Topic cannot exceed 100 characters']
   },
   subtopic: {
     type: String,
@@ -57,9 +57,13 @@ const questionSchema = new mongoose.Schema({
   marks: {
     type: Number,
     required: [true, 'Marks are required'],
-    min: [0.25, 'Marks must be at least 0.25'],
-    max: [100, 'Marks cannot exceed 100'],
-    default: 1
+    default: 1,
+    validate: {
+      validator: function(value) {
+        return value === 1; // All questions must be 1 mark
+      },
+      message: 'All questions must be exactly 1 mark'
+    }
   },
   negativeMarks: {
     type: Number,
@@ -71,11 +75,17 @@ const questionSchema = new mongoose.Schema({
     type: [optionSchema],
     validate: {
       validator: function(options) {
+        // Multiple choice can have 2-6 options
         if (this.type === 'multiple-choice') {
-          return options.length >= 2 && options.length <= 6;
+          return !options || options.length === 0 || (options.length >= 2 && options.length <= 6);
         }
+        // True-false should have exactly 2 options, but allow empty for now
         if (this.type === 'true-false') {
-          return options.length === 2;
+          return !options || options.length === 0 || options.length === 2;
+        }
+        // Fill-in-blank and essay don't need options
+        if (this.type === 'fill-in-blank' || this.type === 'essay') {
+          return true;
         }
         return true;
       },
@@ -196,7 +206,7 @@ const questionSchema = new mongoose.Schema({
 });
 
 // Indexes
-questionSchema.index({ subject: 1, topic: 1 });
+questionSchema.index({ subject: 1 });
 questionSchema.index({ difficulty: 1 });
 questionSchema.index({ tags: 1 });
 questionSchema.index({ status: 1 });
@@ -209,7 +219,6 @@ questionSchema.index({
   question: 'text',
   'options.text': 'text',
   subject: 'text',
-  topic: 'text',
   tags: 'text'
 });
 
@@ -229,8 +238,8 @@ questionSchema.virtual('correctOptions').get(function() {
 
 // Pre-save middleware
 questionSchema.pre('save', function(next) {
-  // Ensure at least one correct answer for multiple choice
-  if (this.type === 'multiple-choice') {
+  // Ensure at least one correct answer for multiple choice (only if options exist)
+  if (this.type === 'multiple-choice' && this.options && this.options.length > 0) {
     const correctOptions = this.options.filter(option => option.isCorrect);
     if (correctOptions.length === 0) {
       return next(new Error('Multiple choice questions must have at least one correct option'));
@@ -307,10 +316,9 @@ questionSchema.methods.createVersion = function(updates, userId) {
 };
 
 // Static methods
-questionSchema.statics.findBySubjectAndTopic = function(subject, topic, options = {}) {
+questionSchema.statics.findBySubject = function(subject, options = {}) {
   return this.find({ 
     subject: subject, 
-    topic: topic, 
     status: 'active',
     ...options 
   });
@@ -336,12 +344,6 @@ questionSchema.statics.getSubjects = function() {
   return this.distinct('subject', { status: 'active' });
 };
 
-questionSchema.statics.getTopics = function(subject) {
-  const filter = { status: 'active' };
-  if (subject) filter.subject = subject;
-  
-  return this.distinct('topic', filter);
-};
 
 questionSchema.statics.getStatistics = function(filters = {}) {
   const pipeline = [

@@ -11,6 +11,13 @@ import adminUserController from '../controllers/admin/userController.js';
 import adminQuestionController from '../controllers/admin/questionController.js';
 import adminExamController from '../controllers/admin/examController.js';
 import adminResultController from '../controllers/admin/resultController.js';
+import subjectController from '../controllers/subjectController.js';
+import { 
+  importQuestionsFromCSV, 
+  getImportTemplate, 
+  getImportHistory,
+  upload 
+} from '../controllers/admin/questionImportController.js';
 
 // Import upload middleware
 import { excelUpload, handleUploadError } from '../utils/upload.js';
@@ -45,6 +52,16 @@ router.delete('/questions/:id', adminQuestionController.deleteQuestion);
 router.put('/questions/bulk', adminQuestionController.bulkUpdateQuestions);
 router.post('/questions/:id/duplicate', adminQuestionController.duplicateQuestion);
 router.get('/questions/:id/analytics', adminQuestionController.getQuestionAnalytics);
+
+// CSV Import endpoints
+router.post('/questions/import-csv', 
+  upload.single('csvFile'),
+  importQuestionsFromCSV
+);
+router.get('/questions/import-template', getImportTemplate);
+router.get('/questions/import-history', getImportHistory);
+
+// Legacy import support
 router.post('/questions/import', 
   excelUpload.single('file'),
   handleUploadError,
@@ -57,6 +74,7 @@ router.get('/questions/export', adminQuestionController.exportQuestions);
 // ================
 router.get('/exams', adminExamController.getAllExams);
 router.get('/exams/stats', adminExamController.getExamStats);
+router.get('/exams/available-subjects', adminExamController.getAvailableSubjects);
 router.post('/exams', adminExamController.createExam);
 router.put('/exams/:id', adminExamController.updateExam);
 router.delete('/exams/:id', adminExamController.deleteExam);
@@ -77,6 +95,19 @@ router.put('/results/bulk', adminResultController.bulkUpdateResults);
 router.delete('/results/:id', adminResultController.deleteResult);
 router.get('/results/export', adminResultController.exportResults);
 router.get('/results/analytics/performance', adminResultController.getPerformanceAnalytics);
+
+// ==================
+// SUBJECT MANAGEMENT
+// ==================
+router.get('/subjects', subjectController.getAllSubjects);
+router.get('/subjects/stats', subjectController.getAllSubjectStats);
+router.post('/subjects', subjectController.createSubject);
+router.get('/subjects/search', subjectController.searchSubjects);
+router.put('/subjects/bulk', subjectController.bulkUpdateSubjects);
+router.get('/subjects/:id', subjectController.getSubjectById);
+router.put('/subjects/:id', subjectController.updateSubject);
+router.delete('/subjects/:id', subjectController.deleteSubject);
+router.get('/subjects/:id/stats', subjectController.getSubjectStats);
 
 // =================
 // DASHBOARD STATS

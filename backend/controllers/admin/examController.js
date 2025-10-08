@@ -114,50 +114,199 @@ export const getExamStats = asyncHandler(async (req, res) => {
   sendSuccessResponse(res, 'Exam statistics retrieved successfully', { stats: result });
 });
 
-// Create new exam
+// Get available subjects for exam creation
+export const getAvailableSubjects = asyncHandler(async (req, res) => {
+  // Get all subjects with question count by difficulty
+  const subjects = await Question.aggregate([
+    { $match: { status: 'active' } },
+    {
+      $group: {
+        _id: {
+          subject: '$subject',
+          difficulty: '$difficulty'
+        },
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $group: {
+        _id: '$_id.subject',
+        difficulties: {
+          $push: {
+            level: '$_id.difficulty',
+            count: '$count'
+          }
+        },
+        totalQuestions: { $sum: '$count' }
+      }
+    },
+    {
+      $project: {
+        subject: '$_id',
+        totalQuestions: 1,
+        easy: {
+          $arrayElemAt: [
+            {
+              $filter: {
+                input: '$difficulties',
+                cond: { $eq: ['$$this.level', 'easy'] }
+              }
+            },
+            0
+          ]
+        },
+        medium: {
+          $arrayElemAt: [
+            {
+              $filter: {
+                input: '$difficulties',
+                cond: { $eq: ['$$this.level', 'medium'] }
+              }
+            },
+            0
+          ]
+        },
+        hard: {
+          $arrayElemAt: [
+            {
+              $filter: {
+                input: '$difficulties',
+                cond: { $eq: ['$$this.level', 'hard'] }
+              }
+            },
+            0
+          ]
+        }
+      }
+    },
+    {
+      $project: {
+        subject: 1,
+        totalQuestions: 1,
+        easyCount: { $ifNull: ['$easy.count', 0] },
+        mediumCount: { $ifNull: ['$medium.count', 0] },
+        hardCount: { $ifNull: ['$hard.count', 0] }
+      }
+    },
+    { $sort: { subject: 1 } }
+  ]);
+  
+  sendSuccessResponse(res, 'Available subjects retrieved successfully', { subjects });
+});
+
+// Create new exam with subject-based weightage system
 export const createExam = asyncHandler(async (req, res) => {
   const {
-    title, description, subject, type, duration, totalMarks, passingMarks,
-    questions, schedule, instructions, settings, eligibility
+    title, description, subjects, type, duration, totalMarks, passingMarks,
+    schedule, instructions, settings, eligibility
   } = req.body;
 
-  // Validate questions exist
-  if (questions && questions.length > 0) {
-    const questionIds = questions.map(q => q.question);
-    const existingQuestions = await Question.find({ _id: { $in: questionIds } });
+  // New subject-based weightage system
+  // subjects: [{ subject: 'Electronics', weightage: 60 }, { subject: 'Physics', weightage: 40 }]
+  if (!subjects || !Array.isArray(subjects) || subjects.length === 0) {
+    return sendErrorResponse(res, 'At least one subject with weightage is required', 400);
+  }
+
+  // Validate weightages add up to 100
+  const totalWeightage = subjects.reduce((sum, s) => sum + (s.weightage || 0), 0);
+  if (Math.abs(totalWeightage - 100) > 0.01) {
+    return sendErrorResponse(res, 'Subject weightages must add up to 100', 400);
+  }
+
+  // Validate totalMarks is provided
+  if (!totalMarks || totalMarks <= 0) {
+    return sendErrorResponse(res, 'Total marks must be specified', 400);
+  }
+
+  // Generate questions automatically based on subjects and weightages
+  let examQuestions = [];
+  let calculatedTotalMarks = 0;
+
+  for (const subjectInfo of subjects) {
+    const { subject, weightage } = subjectInfo;
+    const subjectMarks = Math.round((totalMarks * weightage) / 100);
     
-    if (existingQuestions.length !== questionIds.length) {
-      return sendErrorResponse(res, 'Some questions do not exist', 400);
+    // Each question is 1 mark, so number of questions = marks
+    const questionsNeeded = subjectMarks;
+    
+    if (questionsNeeded === 0) continue;
+    
+    // Distribute questions equally across difficulties (easy, medium, hard)
+    const questionsPerDifficulty = Math.floor(questionsNeeded / 3);
+    const remainingQuestions = questionsNeeded % 3;
+    
+    const difficulties = [
+      { level: 'easy', count: questionsPerDifficulty + (remainingQuestions > 0 ? 1 : 0) },
+      { level: 'medium', count: questionsPerDifficulty + (remainingQuestions > 1 ? 1 : 0) },
+      { level: 'hard', count: questionsPerDifficulty }
+    ];
+
+    // Get questions for each difficulty level
+    for (const diff of difficulties) {
+      if (diff.count === 0) continue;
+      
+      const availableQuestions = await Question.find({
+        subject: subject,
+        difficulty: diff.level,
+        status: 'active'
+      }).limit(diff.count * 2); // Get more than needed for randomization
+      
+      if (availableQuestions.length < diff.count) {
+        return sendErrorResponse(res, 
+          `Not enough ${diff.level} questions available for subject ${subject}. Need ${diff.count}, found ${availableQuestions.length}`, 
+          400
+        );
+      }
+      
+      // Randomly select required number of questions
+      const shuffled = availableQuestions.sort(() => 0.5 - Math.random());
+      const selectedQuestions = shuffled.slice(0, diff.count);
+      
+      // Add to exam questions
+      selectedQuestions.forEach(q => {
+        examQuestions.push({
+          question: q._id,
+          marks: 1, // All questions are 1 mark
+          order: examQuestions.length + 1
+        });
+        calculatedTotalMarks += 1;
+      });
     }
   }
+
+  // Shuffle final question order
+  examQuestions = examQuestions.sort(() => 0.5 - Math.random()).map((q, index) => ({
+    ...q,
+    order: index + 1
+  }));
 
   // Validate schedule
   if (schedule && schedule.endTime <= schedule.startTime) {
     return sendErrorResponse(res, 'End time must be after start time', 400);
   }
 
-  // Calculate total marks from questions if not provided
-  let calculatedTotalMarks = totalMarks;
-  if (!totalMarks && questions && questions.length > 0) {
-    calculatedTotalMarks = questions.reduce((sum, q) => sum + (q.marks || 1), 0);
-  }
-
-  // Create exam
+  // Create exam with subject-based structure
   const exam = new Exam({
     title,
     description,
-    subject,
+    subject: subjects[0].subject, // Primary subject for compatibility
+    subjects: subjects, // New field for multi-subject support
     type: type || 'quiz',
     duration,
     totalMarks: calculatedTotalMarks,
     passingMarks: passingMarks || Math.ceil(calculatedTotalMarks * 0.6),
-    questions: questions || [],
+    questions: examQuestions,
     schedule: schedule || {
       startTime: new Date(),
       endTime: new Date(Date.now() + 2 * 60 * 60 * 1000) // 2 hours from now
     },
     instructions,
-    settings: settings || {},
+    settings: {
+      randomizeQuestions: true,
+      autoSubmit: true,
+      showResults: false,
+      ...settings
+    },
     eligibility: eligibility || {},
     createdBy: req.user.id,
     status: 'draft'
@@ -517,6 +666,7 @@ export const duplicateExam = asyncHandler(async (req, res) => {
 export default {
   getAllExams,
   getExamStats,
+  getAvailableSubjects,
   createExam,
   updateExam,
   deleteExam,

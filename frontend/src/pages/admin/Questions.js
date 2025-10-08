@@ -21,7 +21,7 @@ import {
 } from '@mui/icons-material';
 import Layout from '../../components/layout/Layout.js';
 import DataTable from '../../components/common/DataTable.js';
-import DebugInfo from '../../components/common/DebugInfo.js';
+import QuestionImport from '../../components/admin/QuestionImport.js';
 import questionService from '../../services/questionService.js';
 import { toast } from 'react-toastify';
 
@@ -29,12 +29,12 @@ const Questions = () => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openImportDialog, setOpenImportDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [formData, setFormData] = useState({
     question: '',
     subject: '',
-    topic: '',
     difficulty: 'medium',
     marks: 1,
     options: [
@@ -85,7 +85,6 @@ const Questions = () => {
       setFormData({
         question: '',
         subject: '',
-        topic: '',
         difficulty: 'medium',
         marks: 1,
         options: [
@@ -104,7 +103,6 @@ const Questions = () => {
     setFormData({
       question: '',
       subject: '',
-      topic: '',
       difficulty: 'medium',
       marks: 1,
       options: [
@@ -164,6 +162,18 @@ const Questions = () => {
     }
   };
 
+  const handleOpenImportDialog = () => {
+    setOpenImportDialog(true);
+  };
+
+  const handleCloseImportDialog = () => {
+    setOpenImportDialog(false);
+  };
+
+  const handleImportSuccess = () => {
+    fetchQuestions(); // Refresh the questions list after successful import
+  };
+
   const getDifficultyColor = (difficulty) => {
     switch (difficulty) {
       case 'easy':
@@ -189,6 +199,7 @@ const Questions = () => {
               variant="outlined"
               startIcon={<Upload />}
               sx={{ mr: 2 }}
+              onClick={handleOpenImportDialog}
             >
               Import Questions
             </Button>
@@ -201,9 +212,6 @@ const Questions = () => {
             </Button>
           </Box>
         </Box>
-
-        {/* Debug Info */}
-        <DebugInfo title="Questions Debug" data={questions} />
         
         {/* Questions Table */}
         <DataTable
@@ -212,7 +220,6 @@ const Questions = () => {
           columns={[
             { key: 'question', label: 'Question', type: 'truncate' },
             { key: 'subject', label: 'Subject' },
-            { key: 'topic', label: 'Topic' },
             { key: 'difficulty', label: 'Difficulty', type: 'badge' },
             { key: 'marks', label: 'Marks' },
             { key: 'type', label: 'Type' }
@@ -241,7 +248,7 @@ const Questions = () => {
                 />
               </Grid>
               
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
                   label="Subject"
@@ -251,17 +258,7 @@ const Questions = () => {
                 />
               </Grid>
               
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Topic"
-                  name="topic"
-                  value={formData.topic}
-                  onChange={handleInputChange}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={2}>
+              <Grid item xs={12} md={3}>
                 <TextField
                   fullWidth
                   select
@@ -276,7 +273,7 @@ const Questions = () => {
                 </TextField>
               </Grid>
               
-              <Grid item xs={12} md={2}>
+              <Grid item xs={12} md={3}>
                 <TextField
                   fullWidth
                   type="number"
@@ -321,6 +318,13 @@ const Questions = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* CSV Import Dialog */}
+        <QuestionImport
+          open={openImportDialog}
+          onClose={handleCloseImportDialog}
+          onSuccess={handleImportSuccess}
+        />
       </Container>
     </Layout>
   );

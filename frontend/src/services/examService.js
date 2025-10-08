@@ -3,17 +3,17 @@ import api from './api.js';
 const examService = {
   // Admin endpoints
   createExam: async (examData) => {
-    const response = await api.post('/admin/exam', examData);
+    const response = await api.post('/admin/exams', examData);
     return response.data;
   },
 
   updateExam: async (examId, examData) => {
-    const response = await api.put(`/admin/exam/${examId}`, examData);
+    const response = await api.put(`/admin/exams/${examId}`, examData);
     return response.data;
   },
 
   deleteExam: async (examId) => {
-    const response = await api.delete(`/admin/exam/${examId}`);
+    const response = await api.delete(`/admin/exams/${examId}`);
     return response.data;
   },
 
@@ -53,12 +53,12 @@ const examService = {
 
   // Additional methods for admin
   updateExamStatus: async (examId, status) => {
-    const response = await api.patch(`/admin/exam/${examId}/status`, { status });
+    const response = await api.patch(`/admin/exams/${examId}/status`, { status });
     return response.data;
   },
 
   publishResults: async (examId) => {
-    const response = await api.post(`/admin/exam/${examId}/publish-results`);
+    const response = await api.post(`/admin/exams/${examId}/publish-results`);
     return response.data;
   }
 };
