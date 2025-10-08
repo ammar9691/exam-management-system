@@ -32,6 +32,7 @@ import StudentResults from './pages/student/Results';
 import InstructorDashboard from './pages/instructor/Dashboard';
 import InstructorExams from './pages/instructor/Exams';
 import InstructorStudents from './pages/instructor/Students';
+import InstructorGrading from './pages/instructor/Grading';
 import ExamMonitor from './pages/instructor/ExamMonitor';
 
 // Common Pages
@@ -180,6 +181,22 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['instructor']}>
                   <InstructorStudents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/grading"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <InstructorGrading />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/exams/create"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <InstructorExams />
                 </ProtectedRoute>
               }
             />

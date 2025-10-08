@@ -12,7 +12,7 @@ import subjectRoutes from './subjects.js';
 import resultRoutes from './results.js';
 import adminRoutes from './adminRoutes.js';
 import studentRoutes from './studentRoutes.js';
-import instructorRoutes from './instructor.js';
+import instructorRoutes from './instructorRoutes.js';
 import { serveUploadedFile } from '../utils/upload.js';
 
 const router = express.Router();
