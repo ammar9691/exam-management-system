@@ -5,6 +5,7 @@
 
 import multer from 'multer';
 import csv from 'csv-parser';
+import XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
 import json2csv from 'json2csv';
@@ -32,11 +33,20 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  // Accept CSV files only
-  if (file.mimetype === 'text/csv' || path.extname(file.originalname).toLowerCase() === '.csv') {
+  // Accept CSV and Excel files
+  const allowedTypes = [
+    'text/csv', 
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ];
+  const allowedExtensions = ['.csv', '.xls', '.xlsx'];
+  
+  const extension = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(extension)) {
     cb(null, true);
   } else {
-    cb(new Error('Only CSV files are allowed!'), false);
+    cb(new Error('Only CSV and Excel files (.csv, .xls, .xlsx) are allowed!'), false);
   }
 };
 
@@ -111,7 +121,7 @@ const parseCSVRow = (row, rowIndex, subject, difficulty = 'easy') => {
 // Import questions from CSV
 export const importQuestionsFromCSV = asyncHandler(async (req, res) => {
   if (!req.file) {
-    return sendErrorResponse(res, 'Please upload a CSV file', 400);
+    return sendErrorResponse(res, 'Please upload a CSV or Excel file', 400);
   }
 
   // Get subject from request body or filename
@@ -129,18 +139,40 @@ export const importQuestionsFromCSV = asyncHandler(async (req, res) => {
   let errorCount = 0;
 
   try {
-    // Read and parse CSV file
-    const csvData = [];
+    // Determine file type and parse accordingly
+    const fileExtension = path.extname(filePath).toLowerCase();
+    let csvData = [];
     
-    await new Promise((resolve, reject) => {
-      fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('data', (data) => csvData.push(data))
-        .on('end', resolve)
-        .on('error', reject);
-    });
+    if (fileExtension === '.xlsx' || fileExtension === '.xls') {
+      // Parse Excel file
+      console.log('Parsing Excel file:', filePath);
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0]; // Use first sheet
+      const worksheet = workbook.Sheets[sheetName];
+      csvData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+    } else {
+      // Parse CSV file
+      console.log('Parsing CSV file:', filePath);
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath)
+          .pipe(csv())
+          .on('data', (data) => csvData.push(data))
+          .on('end', resolve)
+          .on('error', reject);
+      });
+    }
 
-    console.log(`Processing ${csvData.length} rows from CSV for subject: ${subject}`);
+    console.log(`Processing ${csvData.length} rows from ${fileExtension} file for subject: ${subject}`);
+    
+    // Debug: Log first few rows to see structure
+    if (csvData.length > 0) {
+      console.log('Sample data structure:');
+      console.log('First row keys:', Object.keys(csvData[0]));
+      console.log('First row data:', csvData[0]);
+      if (csvData.length > 1) {
+        console.log('Second row data:', csvData[1]);
+      }
+    }
 
     // Process each row and detect difficulty sections
     let currentDifficulty = 'easy'; // default
@@ -153,6 +185,18 @@ export const importQuestionsFromCSV = asyncHandler(async (req, res) => {
       // In your Excel format, difficulty appears as standalone text in column A
       const firstColumnValue = row.Serial || Object.values(row)[0] || '';
       const questionValue = row.Question || '';
+      
+      // Debug logging for each row
+      console.log(`Row ${i + 1}:`, {
+        Serial: row.Serial,
+        Question: row.Question,
+        'Option A': row['Option A'],
+        'Option B': row['Option B'],
+        'Option C': row['Option C'],
+        'Correct Option': row['Correct Option'],
+        firstColumnValue,
+        questionValue
+      });
       
       // Check if the first column contains difficulty level text
       let foundDifficulty = false;

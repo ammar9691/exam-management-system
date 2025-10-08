@@ -207,6 +207,11 @@ const adminService = {
     });
   },
 
+  // Get available subjects for exam creation
+  getAvailableSubjects: async () => {
+    return await api.get('/admin/exams/available-subjects');
+  },
+
   // Result Management (Enhanced)
   getResults: async (params = {}) => {
     return await api.get('/admin/results', { params });

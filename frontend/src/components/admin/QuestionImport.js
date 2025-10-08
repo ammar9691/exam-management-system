@@ -59,11 +59,19 @@ const QuestionImport = ({ open, onClose, onSuccess }) => {
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     if (selectedFile) {
-      if (selectedFile.type === 'text/csv' || selectedFile.name.endsWith('.csv')) {
+      const allowedTypes = [
+        'text/csv',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ];
+      const allowedExtensions = ['.csv', '.xls', '.xlsx'];
+      const extension = selectedFile.name.toLowerCase().slice(selectedFile.name.lastIndexOf('.'));
+      
+      if (allowedTypes.includes(selectedFile.type) || allowedExtensions.includes(extension)) {
         setFile(selectedFile);
         setImportResult(null);
       } else {
-        toast.error('Please select a CSV file');
+        toast.error('Please select a CSV or Excel file (.csv, .xls, .xlsx)');
         event.target.value = '';
       }
     }
@@ -78,6 +86,10 @@ const QuestionImport = ({ open, onClose, onSuccess }) => {
     setUploading(true);
     const formData = new FormData();
     formData.append('csvFile', file);
+    
+    // Add subject from filename if available
+    const fileName = file.name.replace(/\.[^/.]+$/, '');
+    formData.append('subject', fileName);
 
     try {
       const response = await api.post('/admin/questions/import-csv', formData, {
@@ -192,7 +204,7 @@ const QuestionImport = ({ open, onClose, onSuccess }) => {
       <DialogTitle>
         <Box display="flex" alignItems="center" gap={1}>
           <CloudUpload />
-          Import Questions from CSV
+          Import Questions from CSV/Excel
         </Box>
       </DialogTitle>
 
@@ -270,11 +282,11 @@ const QuestionImport = ({ open, onClose, onSuccess }) => {
                 
                 <Alert severity="info" sx={{ mt: 2 }}>
                   <strong>Tips:</strong> 
-                  <br />• Use your Excel file with the exact format: Serial, Question, Option A, Option B, Option C, Correct Option
+                  <br />• Use your Excel (.xlsx) or CSV file with the exact format: Serial, Question, Option A, Option B, Option C, Correct Option
                   <br />• Each question needs 2-3 options (A, B, C) and specify the correct option (A, B, or C)
                   <br />• You can group questions by difficulty: add "Easy", "Medium", or "Hard" in a separate row
-                  <br />• File name should be the subject name (e.g., "Electronics.csv")
-                  <br />• All text should be properly escaped if it contains commas or quotes
+                  <br />• File name should be the subject name (e.g., "Electronics.xlsx" or "Electronics.csv")
+                  <br />• Excel files (.xlsx) are preferred as they handle special characters better than CSV
                 </Alert>
               </CardContent>
             </Card>
@@ -288,10 +300,10 @@ const QuestionImport = ({ open, onClose, onSuccess }) => {
               <CardContent sx={{ textAlign: 'center', py: 4 }}>
                 <CloudUpload sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
                 <Typography variant="h6" gutterBottom>
-                  Select CSV File to Import
+                  Select CSV or Excel File to Import
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Choose a CSV file containing your questions data
+                  Choose a CSV or Excel file containing your questions data
                 </Typography>
                 
                 <Button
@@ -303,7 +315,7 @@ const QuestionImport = ({ open, onClose, onSuccess }) => {
                   Choose File
                   <VisuallyHiddenInput
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     onChange={handleFileChange}
                   />
                 </Button>

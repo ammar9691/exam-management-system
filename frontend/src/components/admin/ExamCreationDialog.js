@@ -77,15 +77,10 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
 
   const fetchAvailableSubjects = async () => {
     try {
-      // Use the correct API endpoint for available subjects
-      const response = await fetch('/api/admin/exams/available-subjects', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      setAvailableSubjects(data.data?.subjects || []);
+      const response = await adminService.getAvailableSubjects();
+      console.log("response: subjects: ",response )
+      setAvailableSubjects(response.data.data?.subjects || []);
+      console.log("set availbe: ", availableSubjects);
     } catch (error) {
       console.error('Error fetching subjects:', error);
       toast.error('Failed to load available subjects');
