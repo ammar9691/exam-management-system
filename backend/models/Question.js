@@ -43,10 +43,10 @@ const questionSchema = new mongoose.Schema({
     trim: true,
     maxLength: [100, 'Subject cannot exceed 100 characters']
   },
-  subtopic: {
+  topic: {
     type: String,
     trim: true,
-    maxLength: [100, 'Subtopic cannot exceed 100 characters']
+    maxLength: [100, 'Topic cannot exceed 100 characters']
   },
   difficulty: {
     type: String,

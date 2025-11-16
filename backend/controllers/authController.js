@@ -84,11 +84,9 @@ export const login = asyncHandler(async (req, res) => {
   // Reset login attempts on successful login
   await user.resetLoginAttempts();
   
-  // Update last login
+  // Update last login info
   user.security.lastLogin = new Date();
-  if (user.security.lastLoginIP) {
-    user.security.lastLoginIP = req.ip || req.connection.remoteAddress;
-  }
+  user.security.lastLoginIP = req.ip || req.connection.remoteAddress;
   await user.save();
 
   // Generate JWT token

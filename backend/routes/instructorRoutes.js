@@ -27,6 +27,7 @@ router.put('/exams/:id', instructorExamController.updateExam);
 router.delete('/exams/:id', instructorExamController.deleteExam);
 router.get('/exams/:id', instructorExamController.getExamById);
 router.post('/exams/:id/publish', instructorExamController.publishExam);
+router.patch('/exams/:id/status', instructorExamController.updateExamStatus);
 router.get('/exams/:id/monitor', instructorExamController.getExamMonitorData);
 router.get('/exams/:id/results', instructorExamController.getExamResults);
 

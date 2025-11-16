@@ -24,7 +24,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper
+  Paper,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -32,15 +36,14 @@ import {
   Info as InfoIcon
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
-import adminService from '../../services/adminService.js';
+import instructorService from '../../services/instructorService.js';
 
-const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examData = null }) => {
+const InstructorExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examData = null }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     subjects: [],
     type: 'final',
-    status: 'draft',
     duration: 120,
     totalMarks: 100,
     passingMarks: 60,
@@ -58,7 +61,6 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
 
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [subjectStats, setSubjectStats] = useState({});
   const [previewQuestions, setPreviewQuestions] = useState([]);
 
   useEffect(() => {
@@ -67,7 +69,6 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
       if (editMode && examData) {
         setFormData({
           ...examData,
-          status: examData.status || 'draft',
           schedule: {
             startTime: new Date(examData.schedule?.startTime),
             endTime: new Date(examData.schedule?.endTime)
@@ -79,10 +80,8 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
 
   const fetchAvailableSubjects = async () => {
     try {
-      const response = await adminService.getAvailableSubjects();
-      console.log("response: subjects: ",response )
+      const response = await instructorService.getAvailableSubjects();
       setAvailableSubjects(response.data.data?.subjects || []);
-      console.log("set availbe: ", availableSubjects);
     } catch (error) {
       console.error('Error fetching subjects:', error);
       toast.error('Failed to load available subjects');
@@ -210,7 +209,6 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
     try {
       const examPayload = {
         ...formData,
-        status: formData.status || 'draft',
         schedule: {
           startTime: formData.schedule.startTime.toISOString(),
           endTime: formData.schedule.endTime.toISOString()
@@ -218,10 +216,10 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
       };
 
       if (editMode) {
-        await adminService.updateExam(examData._id, examPayload);
+        await instructorService.updateExam(examData._id, examPayload);
         toast.success('Exam updated successfully!');
       } else {
-        await adminService.createExam(examPayload);
+        await instructorService.createExam(examPayload);
         toast.success('Exam created successfully! Questions have been automatically selected.');
       }
 
@@ -241,7 +239,6 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
       description: '',
       subjects: [],
       type: 'final',
-      status: 'draft',
       duration: 120,
       totalMarks: 100,
       passingMarks: 60,
@@ -302,42 +299,27 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              select
-              label="Exam Type"
-              value={formData.type}
-              onChange={(e) => handleInputChange('type', e.target.value)}
-              SelectProps={{ native: true }}
-            >
-              <option value="practice">Practice</option>
-              <option value="mock">Mock</option>
-              <option value="final">Final</option>
-              <option value="quiz">Quiz</option>
-            </TextField>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              select
-              label="Status"
-              value={formData.status || 'draft'}
-              onChange={(e) => handleInputChange('status', e.target.value)}
-              SelectProps={{ native: true }}
-            >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="cancelled">Cancelled</option>
-            </TextField>
+            <FormControl fullWidth>
+              <InputLabel>Exam Type</InputLabel>
+              <Select
+                value={formData.type}
+                label="Exam Type"
+                onChange={(e) => handleInputChange('type', e.target.value)}
+              >
+                <MenuItem value="quiz">Quiz</MenuItem>
+                <MenuItem value="midterm">Midterm</MenuItem>
+                <MenuItem value="final">Final Exam</MenuItem>
+                <MenuItem value="practice">Practice</MenuItem>
+              </Select>
+            </FormControl>
           </Grid>
 
           <Grid item xs={12}>
             <TextField
               fullWidth
+              label="Description (Optional)"
               multiline
               rows={2}
-              label="Description"
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
             />
@@ -351,180 +333,44 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
             </Typography>
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid item xs={6} md={3}>
             <TextField
               fullWidth
-              type="number"
-              label="Total Marks"
-              value={formData.totalMarks}
-              onChange={(e) => handleInputChange('totalMarks', parseInt(e.target.value) || 0)}
-              required
-            />
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <TextField
-              fullWidth
-              type="number"
               label="Duration (minutes)"
+              type="number"
               value={formData.duration}
               onChange={(e) => handleInputChange('duration', parseInt(e.target.value) || 0)}
-              required
+              inputProps={{ min: 1 }}
             />
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid item xs={6} md={3}>
             <TextField
               fullWidth
+              label="Total Marks"
               type="number"
-              label="Passing Marks"
-              value={formData.passingMarks}
-              onChange={(e) => handleInputChange('passingMarks', parseInt(e.target.value) || 0)}
+              value={formData.totalMarks}
+              onChange={(e) => handleInputChange('totalMarks', parseInt(e.target.value) || 0)}
+              inputProps={{ min: 1 }}
             />
           </Grid>
 
-          {/* Subject Weightage */}
-          <Grid item xs={12}>
-            <Divider sx={{ my: 2 }} />
-            <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-              <Typography variant="h6">
-                📊 Subject Weightage ({getTotalWeightage()}%)
-              </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={addSubject}
-                size="small"
-              >
-                Add Subject
-              </Button>
-            </Box>
-
-            {formData.subjects.length === 0 ? (
-              <Alert severity="info">
-                Add subjects and their weightages. The total must equal 100%.
-              </Alert>
-            ) : (
-              <Box>
-                {formData.subjects.map((subj, index) => (
-                  <Card key={index} sx={{ mb: 2 }}>
-                    <CardContent>
-                      <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} md={4}>
-                          <TextField
-                            fullWidth
-                            select
-                            label="Subject"
-                            value={subj.subject}
-                            onChange={(e) => updateSubject(index, 'subject', e.target.value)}
-                            SelectProps={{ native: true }}
-                          >
-                            <option value="">Select Subject</option>
-                            {availableSubjects.map((s) => (
-                              <option key={s.subject} value={s.subject}>
-                                {s.subject} ({s.totalQuestions} questions)
-                              </option>
-                            ))}
-                          </TextField>
-                        </Grid>
-
-                        <Grid item xs={12} md={6}>
-                          <Typography variant="body2" gutterBottom>
-                            Weightage: {subj.weightage}%
-                          </Typography>
-                          <Slider
-                            value={subj.weightage}
-                            onChange={(_, value) => updateSubject(index, 'weightage', value)}
-                            max={100 - getTotalWeightage() + subj.weightage}
-                            marks
-                            step={5}
-                            valueLabelDisplay="auto"
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} md={2}>
-                          <IconButton
-                            color="error"
-                            onClick={() => removeSubject(index)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Grid>
-                      </Grid>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {getTotalWeightage() !== 100 && (
-                  <Alert severity="warning" sx={{ mb: 2 }}>
-                    Total weightage is {getTotalWeightage()}%. It must equal 100%.
-                  </Alert>
-                )}
-              </Box>
-            )}
+          <Grid item xs={6} md={3}>
+            <TextField
+              fullWidth
+              label="Passing Marks"
+              type="number"
+              value={formData.passingMarks}
+              onChange={(e) => handleInputChange('passingMarks', parseInt(e.target.value) || 0)}
+              inputProps={{ min: 1, max: formData.totalMarks }}
+            />
           </Grid>
 
-          {/* Question Preview */}
-          {previewQuestions.length > 0 && (
-            <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" gutterBottom>
-                🔍 Question Distribution Preview
-              </Typography>
-              
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Subject</strong></TableCell>
-                      <TableCell><strong>Weight</strong></TableCell>
-                      <TableCell><strong>Total Questions</strong></TableCell>
-                      <TableCell><strong>Easy</strong></TableCell>
-                      <TableCell><strong>Medium</strong></TableCell>
-                      <TableCell><strong>Hard</strong></TableCell>
-                      <TableCell><strong>Status</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {previewQuestions.map((q, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{q.subject}</TableCell>
-                        <TableCell>{q.weightage}%</TableCell>
-                        <TableCell>{q.totalQuestions}</TableCell>
-                        <TableCell>
-                          {q.distribution.easy} / {q.available.easy}
-                          {q.available.easy < q.distribution.easy && (
-                            <Chip size="small" color="error" label="Not enough" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {q.distribution.medium} / {q.available.medium}
-                          {q.available.medium < q.distribution.medium && (
-                            <Chip size="small" color="error" label="Not enough" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {q.distribution.hard} / {q.available.hard}
-                          {q.available.hard < q.distribution.hard && (
-                            <Chip size="small" color="error" label="Not enough" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {q.available.easy >= q.distribution.easy &&
-                           q.available.medium >= q.distribution.medium &&
-                           q.available.hard >= q.distribution.hard ? (
-                            <Chip size="small" color="success" label="✓ Ready" />
-                          ) : (
-                            <Chip size="small" color="error" label="⚠ Issues" />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Grid>
-          )}
+          <Grid item xs={6} md={3}>
+            <Typography variant="body2" color="text.secondary">
+              Pass Percentage: {formData.totalMarks > 0 ? Math.round((formData.passingMarks / formData.totalMarks) * 100) : 0}%
+            </Typography>
+          </Grid>
 
           {/* Schedule */}
           <Grid item xs={12}>
@@ -537,8 +383,8 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
+              label="Start Date & Time"
               type="datetime-local"
-              label="Start Time"
               value={formData.schedule.startTime.toISOString().slice(0, 16)}
               onChange={(e) => handleScheduleChange('startTime', e.target.value)}
               InputLabelProps={{ shrink: true }}
@@ -548,19 +394,146 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
+              label="End Date & Time"
               type="datetime-local"
-              label="End Time"
               value={formData.schedule.endTime.toISOString().slice(0, 16)}
               onChange={(e) => handleScheduleChange('endTime', e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
 
+          {/* Subject Configuration */}
+          <Grid item xs={12}>
+            <Divider sx={{ my: 2 }} />
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Typography variant="h6">
+                🎯 Subject Weightage ({getTotalWeightage()}%)
+              </Typography>
+              <Button startIcon={<AddIcon />} onClick={addSubject} variant="outlined">
+                Add Subject
+              </Button>
+            </Box>
+            {getTotalWeightage() !== 100 && (
+              <Alert severity="warning" sx={{ mt: 1 }}>
+                Total weightage must equal 100%. Current: {getTotalWeightage()}%
+              </Alert>
+            )}
+          </Grid>
+
+          {formData.subjects.map((subject, index) => (
+            <Grid item xs={12} key={index}>
+              <Card variant="outlined">
+                <CardContent>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} md={5}>
+                      <FormControl fullWidth>
+                        <InputLabel>Subject</InputLabel>
+                        <Select
+                          value={subject.subject}
+                          label="Subject"
+                          onChange={(e) => updateSubject(index, 'subject', e.target.value)}
+                        >
+                          {availableSubjects.map((subj) => (
+                            <MenuItem key={subj.subject} value={subj.subject}>
+                              {subj.subject} ({subj.totalQuestions} questions)
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <Typography gutterBottom>
+                        Weightage: {subject.weightage}%
+                      </Typography>
+                      <Slider
+                        value={subject.weightage}
+                        onChange={(e, value) => updateSubject(index, 'weightage', value)}
+                        valueLabelDisplay="auto"
+                        step={5}
+                        marks
+                        min={0}
+                        max={100 - (getTotalWeightage() - subject.weightage)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                      <Typography variant="body2" color="text.secondary">
+                        ~{Math.round((formData.totalMarks * subject.weightage) / 100)} questions
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={1}>
+                      <IconButton onClick={() => removeSubject(index)} color="error">
+                        <DeleteIcon />
+                      </IconButton>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+
+          {/* Question Preview */}
+          {previewQuestions.length > 0 && (
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                📊 Question Distribution Preview
+              </Typography>
+              <TableContainer component={Paper} variant="outlined">
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Subject</TableCell>
+                      <TableCell>Easy</TableCell>
+                      <TableCell>Medium</TableCell>
+                      <TableCell>Hard</TableCell>
+                      <TableCell>Total</TableCell>
+                      <TableCell>Status</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {previewQuestions.map((q) => (
+                      <TableRow key={q.subject}>
+                        <TableCell>{q.subject}</TableCell>
+                        <TableCell>
+                          {q.distribution.easy}/{q.available.easy}
+                          {q.available.easy < q.distribution.easy && 
+                            <Chip label="Insufficient" size="small" color="error" sx={{ ml: 1 }} />
+                          }
+                        </TableCell>
+                        <TableCell>
+                          {q.distribution.medium}/{q.available.medium}
+                          {q.available.medium < q.distribution.medium && 
+                            <Chip label="Insufficient" size="small" color="error" sx={{ ml: 1 }} />
+                          }
+                        </TableCell>
+                        <TableCell>
+                          {q.distribution.hard}/{q.available.hard}
+                          {q.available.hard < q.distribution.hard && 
+                            <Chip label="Insufficient" size="small" color="error" sx={{ ml: 1 }} />
+                          }
+                        </TableCell>
+                        <TableCell><strong>{q.totalQuestions}</strong></TableCell>
+                        <TableCell>
+                          {q.available.easy >= q.distribution.easy && 
+                           q.available.medium >= q.distribution.medium && 
+                           q.available.hard >= q.distribution.hard ? (
+                            <Chip label="Ready" color="success" size="small" />
+                          ) : (
+                            <Chip label="Insufficient Questions" color="error" size="small" />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Grid>
+          )}
+
           {/* Settings */}
           <Grid item xs={12}>
             <Divider sx={{ my: 2 }} />
             <Typography variant="h6" gutterBottom>
-              🔧 Settings
+              🔧 Exam Settings
             </Typography>
           </Grid>
 
@@ -584,7 +557,7 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
                   onChange={(e) => handleSettingsChange('autoSubmit', e.target.checked)}
                 />
               }
-              label="Auto Submit"
+              label="Auto Submit on Time"
             />
           </Grid>
 
@@ -596,16 +569,16 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
                   onChange={(e) => handleSettingsChange('showResults', e.target.checked)}
                 />
               }
-              label="Show Results"
+              label="Show Results Immediately"
             />
           </Grid>
 
           <Grid item xs={12}>
             <TextField
               fullWidth
+              label="Instructions (Optional)"
               multiline
               rows={3}
-              label="Instructions"
               value={formData.instructions}
               onChange={(e) => handleInputChange('instructions', e.target.value)}
               placeholder="Enter exam instructions for students..."
@@ -615,19 +588,17 @@ const ExamCreationDialog = ({ open, onClose, onSuccess, editMode = false, examDa
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={handleClose}>
-          Cancel
-        </Button>
+        <Button onClick={handleClose}>Cancel</Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
-          disabled={loading || !isFormValid() || !hasEnoughQuestions()}
+          disabled={!isFormValid() || !hasEnoughQuestions() || loading}
         >
-          {loading ? 'Saving...' : (editMode ? 'Update Exam' : 'Create Exam')}
+          {loading ? 'Creating...' : (editMode ? 'Update Exam' : 'Create Exam')}
         </Button>
       </DialogActions>
     </Dialog>
   );
 };
 
-export default ExamCreationDialog;
+export default InstructorExamCreationDialog;

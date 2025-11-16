@@ -79,6 +79,7 @@ router.post('/exams', adminExamController.createExam);
 router.put('/exams/:id', adminExamController.updateExam);
 router.delete('/exams/:id', adminExamController.deleteExam);
 router.post('/exams/:id/publish', adminExamController.publishExam);
+router.patch('/exams/:id/status', adminExamController.updateExamStatus);
 router.put('/exams/bulk', adminExamController.bulkUpdateExams);
 router.post('/exams/:id/duplicate', adminExamController.duplicateExam);
 router.get('/exams/:id/analytics', adminExamController.getExamAnalytics);

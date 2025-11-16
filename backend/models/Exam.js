@@ -55,7 +55,7 @@ const examSchema = new mongoose.Schema({
   }],
   type: {
     type: String,
-    enum: ['practice', 'mock', 'final', 'quiz'],
+    enum: ['practice', 'assignment', 'midterm', 'mock', 'final', 'quiz'],
     default: 'quiz'
   },
   duration: {
@@ -201,7 +201,7 @@ const examSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'active', 'completed', 'cancelled', 'archived'],
+    enum: ['draft', 'active', 'cancelled'],
     default: 'draft'
   },
   analytics: {

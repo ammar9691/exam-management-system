@@ -108,6 +108,11 @@ export const updateExam = asyncHandler(async (req, res) => {
     startTime, endTime, instructions, settings, eligibility, status
   } = req.body;
 
+  const allowedStatuses = ['draft', 'active', 'cancelled'];
+  if (status && !allowedStatuses.includes(status)) {
+    return sendErrorResponse(res, `Invalid status. Allowed statuses: ${allowedStatuses.join(', ')}`, 400);
+  }
+
   const exam = await Exam.findById(id);
   if (!exam) {
     return sendNotFoundResponse(res, 'Exam');
@@ -172,7 +177,7 @@ export const deleteExam = asyncHandler(async (req, res) => {
     return sendErrorResponse(res, 'Cannot delete exam with existing results', 400);
   }
 
-  exam.status = 'deleted';
+  exam.status = 'cancelled';
   exam.updatedAt = new Date();
   await exam.save();
 
@@ -501,11 +506,37 @@ export const archiveExam = asyncHandler(async (req, res) => {
     return sendNotFoundResponse(res, 'Exam');
   }
 
-  exam.status = 'archived';
+  exam.status = 'cancelled';
   exam.updatedAt = new Date();
   await exam.save();
 
   sendSuccessResponse(res, 'Exam archived successfully');
+});
+
+// Update exam status (generic API)
+export const updateExamStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const allowedStatuses = ['draft', 'active', 'cancelled'];
+  if (!allowedStatuses.includes(status)) {
+    return sendErrorResponse(
+      res,
+      `Invalid status. Allowed statuses: ${allowedStatuses.join(', ')}`,
+      400
+    );
+  }
+
+  const exam = await Exam.findById(id);
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  exam.status = status;
+  exam.updatedAt = new Date();
+  await exam.save();
+
+  sendSuccessResponse(res, 'Exam status updated successfully', { exam });
 });
 
 export default {
@@ -523,5 +554,6 @@ export default {
   getActiveExams,
   getStudentExamHistory,
   publishExam,
-  archiveExam
+  archiveExam,
+  updateExamStatus
 };

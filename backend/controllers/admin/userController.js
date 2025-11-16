@@ -104,8 +104,10 @@ export const createUser = asyncHandler(async (req, res) => {
     password,
     role: role || 'student',
     status: status || 'active',
-    phone,
-    profile: profile || {},
+    profile: {
+      ...(profile || {}),
+      ...(phone ? { phone } : {})
+    },
     'security.isEmailVerified': true // Admin-created users are auto-verified
   });
 
@@ -141,8 +143,15 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (name) user.name = name;
   if (role) user.role = role;
   if (status) user.status = status;
-  if (phone) user.phone = phone;
-  if (profile) user.profile = { ...user.profile, ...profile };
+  if (phone) {
+    user.profile = {
+      ...(user.profile || {}),
+      phone
+    };
+  }
+  if (profile) {
+    user.profile = { ...(user.profile || {}), ...profile };
+  }
 
   await user.save();
 
@@ -257,7 +266,7 @@ export const exportUsers = asyncHandler(async (req, res) => {
 
   if (format === 'csv') {
     const fields = [
-      'name', 'email', 'role', 'status', 'phone',
+      'name', 'email', 'role', 'status', 'profile.phone',
       'createdAt', 'updatedAt', 'security.isEmailVerified',
       'stats.totalExamsTaken', 'stats.averageScore'
     ];

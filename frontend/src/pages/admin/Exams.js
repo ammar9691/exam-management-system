@@ -3,7 +3,8 @@ import {
   Container,
   Typography,
   Box,
-  Button
+  Button,
+  TextField
 } from '@mui/material';
 import {
   Add
@@ -115,6 +116,21 @@ const Exams = () => {
             ]}
             onEdit={handleOpenDialog}
             onDelete={handleDelete}
+            renderRowActions={(exam) => (
+              <TextField
+                select
+                size="small"
+                variant="standard"
+                value={exam.status || 'draft'}
+                onChange={(e) => handleStatusChange(exam._id || exam.id, e.target.value)}
+                SelectProps={{ native: true }}
+                sx={{ mr: 1, minWidth: 110 }}
+              >
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="cancelled">Cancelled</option>
+              </TextField>
+            )}
             emptyMessage="No exams found. Click 'Create Exam' to create one."
           />
 

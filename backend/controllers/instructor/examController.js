@@ -31,7 +31,7 @@ export const getExamStats = asyncHandler(async (req, res) => {
   const totalExams = await Exam.countDocuments({ createdBy: instructorId });
   const publishedExams = await Exam.countDocuments({ 
     createdBy: instructorId, 
-    status: 'published' 
+    status: 'active' 
   });
   const draftExams = await Exam.countDocuments({ 
     createdBy: instructorId, 
@@ -81,6 +81,17 @@ export const createExam = asyncHandler(async (req, res) => {
 // Update an exam
 export const updateExam = asyncHandler(async (req, res) => {
   const { id } = req.params;
+
+  if (req.body.status) {
+    const allowedStatuses = ['draft', 'active', 'cancelled'];
+    if (!allowedStatuses.includes(req.body.status)) {
+      return res.status(400).json({
+        status: 'error',
+        message: `Invalid status. Allowed statuses: ${allowedStatuses.join(', ')}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
   
   const exam = await Exam.findOne({ 
     _id: id, 
@@ -187,7 +198,7 @@ export const publishExam = asyncHandler(async (req, res) => {
     });
   }
 
-  exam.status = 'published';
+  exam.status = 'active';
   exam.publishedAt = new Date();
   await exam.save();
 
@@ -308,6 +319,47 @@ export const getExamResults = asyncHandler(async (req, res) => {
   });
 });
 
+// Update exam status
+export const updateExamStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const allowedStatuses = ['draft', 'active', 'cancelled'];
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Invalid status. Allowed statuses: ${allowedStatuses.join(', ')}`,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  const exam = await Exam.findOne({
+    _id: id,
+    createdBy: req.user._id
+  });
+
+  if (!exam) {
+    return res.status(404).json({
+      status: 'error',
+      message: 'Exam not found or access denied',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  exam.status = status;
+  if (status === 'active') {
+    exam.publishedAt = new Date();
+  }
+  await exam.save();
+
+  res.json({
+    status: 'success',
+    message: 'Exam status updated successfully',
+    data: { exam },
+    timestamp: new Date().toISOString()
+  });
+});
+
 export default {
   getInstructorExams,
   getExamStats,
@@ -317,5 +369,6 @@ export default {
   getExamById,
   publishExam,
   getExamMonitorData,
-  getExamResults
+  getExamResults,
+  updateExamStatus
 };

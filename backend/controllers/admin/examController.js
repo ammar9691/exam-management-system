@@ -198,8 +198,15 @@ export const getAvailableSubjects = asyncHandler(async (req, res) => {
 export const createExam = asyncHandler(async (req, res) => {
   const {
     title, description, subjects, type, duration, totalMarks, passingMarks,
-    schedule, instructions, settings, eligibility
+    schedule, instructions, settings, eligibility, status
   } = req.body;
+
+  const allowedStatuses = ['draft', 'active', 'cancelled'];
+  const examStatus = status || 'draft';
+
+  if (!allowedStatuses.includes(examStatus)) {
+    return sendErrorResponse(res, `Invalid status. Allowed statuses: ${allowedStatuses.join(', ')}`, 400);
+  }
 
   // New subject-based weightage system
   // subjects: [{ subject: 'Electronics', weightage: 60 }, { subject: 'Physics', weightage: 40 }]
@@ -309,7 +316,7 @@ export const createExam = asyncHandler(async (req, res) => {
     },
     eligibility: eligibility || {},
     createdBy: req.user.id,
-    status: 'draft'
+    status: examStatus
   });
 
   await exam.save();
@@ -325,6 +332,13 @@ export const createExam = asyncHandler(async (req, res) => {
 export const updateExam = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
+
+  if (updateData.status) {
+    const allowedStatuses = ['draft', 'active', 'cancelled'];
+    if (!allowedStatuses.includes(updateData.status)) {
+      return sendErrorResponse(res, `Invalid status. Allowed statuses: ${allowedStatuses.join(', ')}`, 400);
+    }
+  }
 
   const exam = await Exam.findById(id);
   if (!exam) {
@@ -601,9 +615,7 @@ export const bulkUpdateExams = asyncHandler(async (req, res) => {
       successMessage = 'Exams cancelled successfully';
       break;
     case 'complete':
-      updateQuery.status = 'completed';
-      successMessage = 'Exams marked as completed successfully';
-      break;
+      return sendErrorResponse(res, 'The "complete" bulk action is no longer supported. Use status "active" or "cancelled" instead.', 400);
     case 'updateDuration':
       if (!data.duration) {
         return sendErrorResponse(res, 'Duration is required', 400);
@@ -624,6 +636,32 @@ export const bulkUpdateExams = asyncHandler(async (req, res) => {
     modifiedCount: result.modifiedCount,
     matchedCount: result.matchedCount
   });
+});
+
+// Update single exam status
+export const updateExamStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const allowedStatuses = ['draft', 'active', 'cancelled'];
+  if (!allowedStatuses.includes(status)) {
+    return sendErrorResponse(
+      res,
+      `Invalid status. Allowed statuses: ${allowedStatuses.join(', ')}`,
+      400
+    );
+  }
+
+  const exam = await Exam.findById(id);
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  exam.status = status;
+  exam.lastModifiedBy = req.user.id;
+  await exam.save();
+
+  sendSuccessResponse(res, 'Exam status updated successfully', { exam });
 });
 
 // Duplicate exam
@@ -674,5 +712,6 @@ export default {
   getExamAnalytics,
   exportExamResults,
   bulkUpdateExams,
+  updateExamStatus,
   duplicateExam
 };

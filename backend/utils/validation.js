@@ -181,8 +181,8 @@ export const userValidations = {
 // Question validation chains
 export const questionValidations = {
   create: [
-    commonValidations.requiredString('text', 10, 1000),
-    body('type').isIn(['multiple-choice', 'true-false', 'short-answer', 'essay']).withMessage('Invalid question type'),
+    commonValidations.requiredString('question', 10, 1000),
+    body('type').isIn(['multiple-choice']).withMessage('Invalid question type'),
     commonValidations.requiredString('subject', 2, 100),
     commonValidations.requiredString('topic', 2, 100),
     body('difficulty').isIn(['easy', 'medium', 'hard']).withMessage('Invalid difficulty level'),
@@ -194,8 +194,8 @@ export const questionValidations = {
 
   update: [
     commonValidations.objectId('id'),
-    commonValidations.optionalString('text', 10, 1000),
-    body('type').optional().isIn(['multiple-choice', 'true-false', 'short-answer', 'essay']).withMessage('Invalid question type'),
+    commonValidations.optionalString('question', 10, 1000),
+    body('type').optional().isIn(['multiple-choice']).withMessage('Invalid question type'),
     commonValidations.optionalString('subject', 2, 100),
     commonValidations.optionalString('topic', 2, 100),
     body('difficulty').optional().isIn(['easy', 'medium', 'hard']).withMessage('Invalid difficulty level'),

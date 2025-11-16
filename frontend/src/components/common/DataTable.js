@@ -19,6 +19,7 @@ const DataTable = ({
   onEdit, 
   onDelete, 
   onView,
+  renderRowActions,
   loading = false,
   emptyMessage = "No data available"
 }) => {
@@ -106,8 +107,9 @@ const DataTable = ({
                       {renderCellValue(row[column.key], column.type)}
                     </TableCell>
                   ))}
-                  {(onEdit || onDelete || onView) && (
+                  {(onEdit || onDelete || onView || renderRowActions) && (
                     <TableCell>
+                      {renderRowActions && renderRowActions(row)}
                       {onView && (
                         <IconButton 
                           size="small" 

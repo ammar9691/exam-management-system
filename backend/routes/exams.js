@@ -83,4 +83,10 @@ router.post('/:id/archive',
   examController.archiveExam
 );
 
+// PATCH /api/exams/:id/status
+router.patch('/:id/status', 
+  authorize('admin', 'instructor'),
+  examController.updateExamStatus
+);
+
 export default router;

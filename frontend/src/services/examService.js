@@ -28,26 +28,34 @@ const examService = {
     return response.data;
   },
 
+  // Fetch exam details for a student (without starting an attempt)
   getExamDetails: async (examId) => {
-    const response = await api.get(`/exam/${examId}`);
+    const response = await api.get(`/student/exam/${examId}`);
     return response.data;
   },
 
+  // Start a student exam attempt
   startExam: async (examId) => {
-    const response = await api.post(`/exam/${examId}/start`);
+    const response = await api.post(`/student/exam/${examId}/start`);
     return response.data;
   },
 
+  // Save progress for a single answer (wrapper over progress endpoint)
   submitAnswer: async (examId, questionId, answer) => {
-    const response = await api.post(`/exam/${examId}/answer`, {
-      questionId,
-      answer
+    const response = await api.post(`/student/exam/${examId}/progress`, {
+      answers: [
+        {
+          question: questionId,
+          selectedOptions: Array.isArray(answer) ? answer : [answer]
+        }
+      ]
     });
     return response.data;
   },
 
+  // Submit final answers for an exam attempt
   submitExam: async (examId, answers) => {
-    const response = await api.post(`/exam/${examId}/submit`, { answers });
+    const response = await api.post(`/student/exam/${examId}/submit`, { answers });
     return response.data;
   },
 
