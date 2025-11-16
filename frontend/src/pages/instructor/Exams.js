@@ -46,11 +46,13 @@ import {
   Download,
   Share
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import instructorService from '../../services/instructorService';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { format } from 'date-fns';
+import InstructorExamCreationDialog from '../../components/instructor/ExamCreationDialog';
+import ExamPublishDialog from '../../components/instructor/ExamPublishDialog';
 
 const InstructorExams = () => {
   const navigate = useNavigate();
@@ -69,6 +71,10 @@ const InstructorExams = () => {
   const [selectedExam, setSelectedExam] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, exam: null });
   const [statusDialog, setStatusDialog] = useState({ open: false, exam: null, newStatus: '' });
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [dialogExam, setDialogExam] = useState(null);
+  const [publishDialog, setPublishDialog] = useState({ open: false, exam: null });
 
   useEffect(() => {
     fetchExams();
@@ -80,15 +86,23 @@ const InstructorExams = () => {
       const params = {
         page: page + 1,
         limit: rowsPerPage,
-        status: filters.status,
         subject: filters.subject,
         search: filters.search
       };
-      
+      // Do not send status="all" to backend, treat it as "no status filter"
+      if (filters.status && filters.status !== 'all') {
+        params.status = filters.status;
+      }
+
       const response = await instructorService.getExams(params);
-      setExams(response.data.exams);
-      setFilteredExams(response.data.exams);
-      setTotalCount(response.data.pagination.total);
+      // Backend uses sendSuccessResponse({ data: { exams, pagination } })
+      const payload = response.data?.data || response.data || {};
+      const examsData = payload.exams || [];
+      const pagination = payload.pagination || { total: examsData.length };
+
+      setExams(Array.isArray(examsData) ? examsData : []);
+      setFilteredExams(Array.isArray(examsData) ? examsData : []);
+      setTotalCount(pagination.total || examsData.length);
     } catch (error) {
       console.error('Error fetching exams:', error);
       toast.error('Failed to fetch exams');
@@ -108,16 +122,23 @@ const InstructorExams = () => {
   };
 
   const handleCreateExam = () => {
-    navigate('/instructor/exams/create');
+    setEditMode(false);
+    setDialogExam(null);
+    setOpenDialog(true);
   };
 
   const handleEditExam = (exam) => {
-    navigate(`/instructor/exams/${exam._id}/edit`);
+    setEditMode(true);
+    setDialogExam(exam);
+    setOpenDialog(true);
     handleMenuClose();
   };
 
   const handleViewExam = (exam) => {
-    navigate(`/instructor/exams/${exam._id}`);
+    // For now, reuse edit dialog as view; could be extended
+    setEditMode(true);
+    setDialogExam(exam);
+    setOpenDialog(true);
     handleMenuClose();
   };
 
@@ -144,6 +165,14 @@ const InstructorExams = () => {
 
   const handleStatusChange = async () => {
     try {
+      if (statusDialog.newStatus === 'active') {
+        // For publishing, open the publish dialog to assign students first
+        setPublishDialog({ open: true, exam: statusDialog.exam });
+        setStatusDialog({ open: false, exam: null, newStatus: '' });
+        return;
+      }
+
+      // Unpublish or other status changes can go directly
       await instructorService.updateExamStatus(statusDialog.exam._id, statusDialog.newStatus);
       toast.success(`Exam ${statusDialog.newStatus === 'active' ? 'published' : 'unpublished'} successfully`);
       fetchExams();
@@ -196,6 +225,16 @@ const InstructorExams = () => {
       </Layout>
     );
   }
+
+  const handleDialogClose = () => {
+    setOpenDialog(false);
+    setEditMode(false);
+    setDialogExam(null);
+  };
+
+  const handleDialogSuccess = () => {
+    fetchExams();
+  };
 
   return (
     <Layout>
@@ -334,7 +373,7 @@ const InstructorExams = () => {
                       Avg. Score
                     </Typography>
                     <Typography variant="h4">
-                      {exams.length > 0 
+                      {exams.length > 0
                         ? Math.round(exams.reduce((sum, exam) => sum + (exam.stats?.averageScore || 0), 0) / exams.length)
                         : 0}%
                     </Typography>
@@ -410,9 +449,10 @@ const InstructorExams = () => {
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color={
-                          (exam.stats?.averageScore || 0) >= 60 ? 'success.main' : 'error.main'
-                        }>
+                        <Typography
+                          variant="body2"
+                          color={(exam.stats?.averageScore || 0) >= 60 ? 'success.main' : 'error.main'}
+                        >
                           {exam.stats?.averageScore?.toFixed(1) || 0}%
                         </Typography>
                       </TableCell>
@@ -476,12 +516,12 @@ const InstructorExams = () => {
               Monitor Live
             </MenuItem>
           )}
-          <MenuItem 
+          <MenuItem
             onClick={() => {
-              setStatusDialog({ 
-                open: true, 
-                exam: selectedExam, 
-                newStatus: selectedExam?.status === 'active' ? 'draft' : 'active' 
+              setStatusDialog({
+                open: true,
+                exam: selectedExam,
+                newStatus: selectedExam?.status === 'active' ? 'draft' : 'active'
               });
               handleMenuClose();
             }}
@@ -489,7 +529,7 @@ const InstructorExams = () => {
             {selectedExam?.status === 'active' ? <Stop sx={{ mr: 1 }} /> : <PlayArrow sx={{ mr: 1 }} />}
             {selectedExam?.status === 'active' ? 'Unpublish' : 'Publish'}
           </MenuItem>
-          <MenuItem 
+          <MenuItem
             onClick={() => {
               setDeleteDialog({ open: true, exam: selectedExam });
               handleMenuClose();
@@ -535,6 +575,24 @@ const InstructorExams = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <InstructorExamCreationDialog
+          open={openDialog}
+          onClose={handleDialogClose}
+          onSuccess={handleDialogSuccess}
+          editMode={editMode}
+          examData={dialogExam}
+        />
+
+        <ExamPublishDialog
+          open={publishDialog.open}
+          exam={publishDialog.exam}
+          onClose={() => setPublishDialog({ open: false, exam: null })}
+          onPublished={() => {
+            setPublishDialog({ open: false, exam: null });
+            fetchExams();
+          }}
+        />
       </Container>
     </Layout>
   );

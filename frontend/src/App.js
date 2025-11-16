@@ -34,6 +34,7 @@ import InstructorExams from './pages/instructor/Exams';
 import InstructorStudents from './pages/instructor/Students';
 import InstructorGrading from './pages/instructor/Grading';
 import ExamMonitor from './pages/instructor/ExamMonitor';
+import InstructorQuestions from './pages/instructor/Questions';
 
 // Common Pages
 import NotFound from './pages/NotFound';
@@ -177,6 +178,14 @@ function App() {
               }
             />
             <Route
+              path="/instructor/questions"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <InstructorQuestions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/instructor/students"
               element={
                 <ProtectedRoute allowedRoles={['instructor']}>
@@ -192,14 +201,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/instructor/exams/create"
-              element={
-                <ProtectedRoute allowedRoles={['instructor']}>
-                  <InstructorExams />
-                </ProtectedRoute>
-              }
-            />
+            {/* Exam creation/edit is handled via dialog inside InstructorExams */}
             <Route
               path="/instructor/exams/:examId/monitor"
               element={

@@ -9,8 +9,7 @@ const instructorService = {
 
   // Exam Management
   getExams: async (params = {}) => {
-    const response = await api.get('/instructor/exams', { params });
-    return response.data;
+    return await api.get('/instructor/exams', { params });
   },
 
   getExam: async (examId) => {
@@ -19,124 +18,137 @@ const instructorService = {
   },
 
   createExam: async (examData) => {
-    const response = await api.post('/instructor/exams', examData);
-    return response.data;
+    return await api.post('/instructor/exams', examData);
   },
 
   updateExam: async (examId, examData) => {
-    const response = await api.put(`/instructor/exams/${examId}`, examData);
-    return response.data;
+    return await api.put(`/instructor/exams/${examId}`, examData);
   },
 
   updateExamStatus: async (examId, status) => {
-    const response = await api.patch(`/instructor/exams/${examId}/status`, { status });
-    return response.data;
+    return await api.patch(`/instructor/exams/${examId}/status`, { status });
   },
 
   deleteExam: async (examId) => {
-    const response = await api.delete(`/instructor/exams/${examId}`);
-    return response.data;
+    return await api.delete(`/instructor/exams/${examId}`);
   },
 
   // Exam Assignment and Monitoring
   assignExamToStudents: async (examId, studentIds) => {
-    const response = await api.post(`/instructor/exams/${examId}/assign`, { studentIds });
-    return response.data;
+    return await api.post(`/instructor/exams/${examId}/assign`, { studentIds });
+  },
+
+  publishExam: async (examId) => {
+    return await api.post(`/instructor/exams/${examId}/publish`);
   },
 
   getExamResults: async (examId) => {
-    const response = await api.get(`/instructor/exams/${examId}/results`);
-    return response.data;
+    return await api.get(`/instructor/exams/${examId}/results`);
   },
 
   monitorLiveExam: async (examId) => {
-    const response = await api.get(`/instructor/exams/${examId}/monitor`);
-    return response.data;
+    return await api.get(`/instructor/exams/${examId}/monitor`);
   },
 
   // Question Management
   getQuestions: async (params = {}) => {
-    const response = await api.get('/instructor/questions', { params });
-    return response.data;
+    return await api.get('/instructor/questions', { params });
   },
 
   createQuestion: async (questionData) => {
-    const response = await api.post('/instructor/questions', questionData);
-    return response.data;
+    return await api.post('/instructor/questions', questionData);
   },
 
   updateQuestion: async (questionId, questionData) => {
-    const response = await api.put(`/instructor/questions/${questionId}`, questionData);
-    return response.data;
+    return await api.put(`/instructor/questions/${questionId}`, questionData);
   },
 
   deleteQuestion: async (questionId) => {
-    const response = await api.delete(`/instructor/questions/${questionId}`);
-    return response.data;
+    return await api.delete(`/instructor/questions/${questionId}`);
   },
-
   // Student Management
   getStudents: async () => {
-    const response = await api.get('/instructor/students');
-    return response.data;
+    return await api.get('/instructor/students');
   },
 
   // Bulk operations
   bulkUpdateExams: async (examIds, action, data = {}) => {
-    const response = await api.put('/instructor/exams/bulk', { examIds, action, data });
-    return response.data;
+    return await api.put('/instructor/exams/bulk', { examIds, action, data });
   },
 
   bulkUpdateQuestions: async (questionIds, action, data = {}) => {
-    const response = await api.put('/instructor/questions/bulk', { questionIds, action, data });
-    return response.data;
+    return await api.put('/instructor/questions/bulk', { questionIds, action, data });
   },
 
   // Export functionality
   exportExamResults: async (examId, format = 'csv') => {
-    const response = await api.get(`/instructor/exams/${examId}/export`, {
+    return await api.get(`/instructor/exams/${examId}/export`, {
       params: { format },
       responseType: 'blob'
     });
-    return response.data;
   },
 
   exportQuestions: async (params = {}) => {
-    const response = await api.get('/instructor/questions/export', {
+    return await api.get('/instructor/questions/export', {
       params,
       responseType: 'blob'
     });
-    return response.data;
   },
 
   // Analytics
   getExamAnalytics: async (examId, period = '30d') => {
-    const response = await api.get(`/instructor/exams/${examId}/analytics`, {
+    return await api.get(`/instructor/exams/${examId}/analytics`, {
       params: { period }
     });
-    return response.data;
   },
 
   getStudentPerformance: async (studentId, examIds = []) => {
-    const response = await api.get(`/instructor/students/${studentId}/performance`, {
+    return await api.get(`/instructor/students/${studentId}/performance`, {
       params: { examIds: examIds.join(',') }
     });
-    return response.data;
   },
 
   // Notifications and Communication
   sendNotification: async (recipients, message, type = 'info') => {
-    const response = await api.post('/instructor/notifications', {
+    return await api.post('/instructor/notifications', {
       recipients,
       message,
       type
     });
-    return response.data;
   },
 
   getNotifications: async () => {
-    const response = await api.get('/instructor/notifications');
-    return response.data;
+    return await api.get('/instructor/notifications');
+  },
+
+  // Instructor grading endpoints
+  getGradingQueue: async (params = {}) => {
+    return await api.get('/instructor/grading/queue', { params });
+  },
+
+  getGradingStats: async () => {
+    return await api.get('/instructor/grading/stats');
+  },
+
+  gradeResult: async (resultId, payload) => {
+    return await api.post(`/instructor/grading/${resultId}`, payload);
+  },
+
+  updateGrading: async (resultId, payload) => {
+    return await api.put(`/instructor/grading/${resultId}`, payload);
+  },
+
+  getGradingHistory: async (params = {}) => {
+    return await api.get('/instructor/grading/history', { params });
+  },
+
+  bulkGradeResults: async (grades) => {
+    return await api.post('/instructor/grading/bulk', { grades });
+  },
+
+  // Available subjects for instructor exam creation
+  getAvailableSubjects: async () => {
+    return await api.get('/instructor/exams/available-subjects');
   }
 };
 

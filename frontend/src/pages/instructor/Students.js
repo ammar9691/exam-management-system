@@ -60,8 +60,11 @@ const InstructorStudents = () => {
     try {
       setLoading(true);
       const response = await instructorService.getStudents();
-      const studentsData = response.data.students;
-      setStudents(studentsData);
+      // Support both plain and wrapped response shapes: { students } or { data: { students } }
+      const payload = response.data || {};
+      const studentsData = payload.students || payload.data?.students || [];
+
+      setStudents(Array.isArray(studentsData) ? studentsData : []);
       
       // Calculate stats
       const total = studentsData.length;

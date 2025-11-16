@@ -44,6 +44,8 @@ const Sidebar = ({ open }) => {
 
   const instructorMenuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/instructor/dashboard' },
+    { text: 'Exams', icon: <Assignment />, path: '/instructor/exams' },
+    { text: 'Questions', icon: <Quiz />, path: '/instructor/questions' },
     { text: 'Grading', icon: <Grade />, path: '/instructor/grading' },
     { text: 'Students', icon: <School />, path: '/instructor/students' },
   ];

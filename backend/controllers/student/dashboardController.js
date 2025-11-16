@@ -75,10 +75,7 @@ export const getUpcomingExams = asyncHandler(async (req, res) => {
   const upcomingExams = await Exam.find({
     status: 'active',
     'schedule.startTime': { $gt: new Date() },
-    $or: [
-      { 'eligibility.students': { $in: [studentId] } },
-      { 'eligibility.students': { $size: 0 } }
-    ]
+    'eligibility.students': { $in: [studentId] }
   })
     .select('title description subject duration totalMarks schedule instructions')
     .sort({ 'schedule.startTime': 1 })
@@ -142,10 +139,7 @@ export const getAvailableExams = asyncHandler(async (req, res) => {
     status: 'active',
     'schedule.startTime': { $lte: new Date() },
     'schedule.endTime': { $gte: new Date() },
-    $or: [
-      { 'eligibility.students': { $in: [studentId] } },
-      { 'eligibility.students': { $size: 0 } }
-    ]
+    'eligibility.students': { $in: [studentId] }
   })
     .select('title description subject duration totalMarks schedule instructions settings')
     .sort({ 'schedule.startTime': 1 });
