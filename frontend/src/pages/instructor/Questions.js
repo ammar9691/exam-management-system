@@ -16,6 +16,7 @@ import {
   Checkbox
 } from '@mui/material';
 import { Add, Upload } from '@mui/icons-material';
+import { useLocation } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import DataTable from '../../components/common/DataTable';
 import InstructorQuestionImport from '../../components/instructor/QuestionImport';
@@ -23,6 +24,7 @@ import instructorService from '../../services/instructorService';
 import { toast } from 'react-toastify';
 
 const InstructorQuestions = () => {
+  const location = useLocation();
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
@@ -45,6 +47,15 @@ const InstructorQuestions = () => {
   useEffect(() => {
     fetchQuestions();
   }, []);
+
+  // If navigated from dashboard with "Add Question" quick action, open the dialog
+  useEffect(() => {
+    if (location.state && location.state.openCreateQuestion) {
+      handleOpenDialog();
+    }
+    // We intentionally omit handleOpenDialog from deps to avoid re-opening on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const fetchQuestions = async () => {
     try {

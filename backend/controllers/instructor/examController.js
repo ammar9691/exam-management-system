@@ -3,6 +3,7 @@
  * Mirrors admin exam workflows while scoping data to the instructor
  */
 
+import mongoose from 'mongoose';
 import Exam from '../../models/Exam.js';
 import Question from '../../models/Question.js';
 import Result from '../../models/Result.js';
@@ -56,7 +57,8 @@ export const getInstructorExams = asyncHandler(async (req, res) => {
     sort: Object.keys(sort).length > 0 ? sort : { 'schedule.startTime': -1 },
     populate: [
       { path: 'createdBy', select: 'name email' },
-      { path: 'questions.question', select: 'question type difficulty marks' }
+      { path: 'questions.question', select: 'question type difficulty marks' },
+      { path: 'eligibility.students', select: 'name email' }
     ]
   });
 
@@ -105,8 +107,18 @@ export const getExamStats = asyncHandler(async (req, res) => {
 
 // Get available subjects for instructor exam creation (mirrors admin but scoped)
 export const getAvailableSubjects = asyncHandler(async (req, res) => {
+  // Instructors should see subjects based on all questions they can access:
+  // questions they created AND questions created by admins
+  const adminUsers = await User.find({ role: 'admin' }).select('_id');
+  const adminIds = adminUsers.map(u => u._id);
+
   const subjects = await Question.aggregate([
-    { $match: { status: 'active', createdBy: req.user._id } },
+    {
+      $match: {
+        status: 'active',
+        createdBy: { $in: [...adminIds, req.user._id] }
+      }
+    },
     {
       $group: {
         _id: {
@@ -796,6 +808,37 @@ export const assignExamToStudents = asyncHandler(async (req, res) => {
     return sendErrorResponse(res, 'studentIds array is required', 400);
   }
 
+  // Normalize incoming student IDs (handle strings, objects, and filter out invalid values)
+  const normalizeId = (value) => {
+    if (!value) return null;
+
+    // If a full user object was sent accidentally, use its id/_id
+    if (typeof value === 'object') {
+      if (value._id) return String(value._id);
+      if (value.id) return String(value.id);
+      return null;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      // Accept only 24-char hex strings as valid ObjectId representations
+      if (/^[0-9a-fA-F]{24}$/.test(trimmed)) {
+        return trimmed;
+      }
+      return null;
+    }
+
+    return null;
+  };
+
+  const normalizedIncomingIds = studentIds
+    .map(normalizeId)
+    .filter(Boolean);
+
+  if (normalizedIncomingIds.length === 0) {
+    return sendErrorResponse(res, 'No valid student IDs provided', 400);
+  }
+
   const exam = await Exam.findById(id);
   if (!exam) {
     return sendNotFoundResponse(res, 'Exam');
@@ -811,11 +854,28 @@ export const assignExamToStudents = asyncHandler(async (req, res) => {
     return sendErrorResponse(res, 'Not authorized to assign this exam', 403);
   }
 
-  const existing = exam.eligibility?.students?.map(s => String(s)) || [];
-  const toAdd = studentIds.filter(sid => !existing.includes(String(sid)));
+  // Sanitize existing stored IDs (handle ObjectIds, populated docs, and drop invalid strings)
+  const existingIds = (exam.eligibility?.students || [])
+    .map((s) => {
+      if (!s) return null;
+      if (typeof s === 'string') {
+        const trimmed = s.trim();
+        return /^[0-9a-fA-F]{24}$/.test(trimmed) ? trimmed : null;
+      }
+      if (typeof s === 'object') {
+        if (s._id) return String(s._id);
+        if (s.id) return String(s.id);
+        return null;
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  // Merge existing + incoming, remove duplicates, and cast to ObjectId for storage
+  const mergedIds = Array.from(new Set([...existingIds, ...normalizedIncomingIds]));
 
   exam.eligibility = exam.eligibility || {};
-  exam.eligibility.students = [...existing, ...toAdd];
+  exam.eligibility.students = mergedIds.map((id) => new mongoose.Types.ObjectId(id));
 
   await exam.save();
 

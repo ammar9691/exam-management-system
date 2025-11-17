@@ -26,7 +26,7 @@ export const getAssignedStudents = asyncHandler(async (req, res) => {
 
   const instructorExams = await Exam.find({
     createdBy: { $in: [...adminIds, req.user._id] }
-  }).select('_id');
+  }).select('_id eligibility.students');
   const examIds = instructorExams.map(exam => exam._id);
 
   // Instructors should see all students, but stats are computed only
@@ -52,6 +52,18 @@ export const getAssignedStudents = asyncHandler(async (req, res) => {
 
   const studentsWithStats = await Promise.all(
     students.map(async student => {
+      // Exams visible to this instructor that explicitly include this student in eligibility.students
+      const assignedExamIds = new Set(
+        instructorExams
+          .filter(exam =>
+            Array.isArray(exam.eligibility?.students) &&
+            exam.eligibility.students.some(
+              (s) => String(s) === String(student._id)
+            )
+          )
+          .map(exam => String(exam._id))
+      );
+
       const studentResults = await Result.find({
         student: student._id,
         exam: { $in: examIds }
@@ -74,9 +86,7 @@ export const getAssignedStudents = asyncHandler(async (req, res) => {
             ) / totalExams
           : 0;
 
-      const examsAssigned = new Set(
-        studentResults.map(r => String(r.exam))
-      ).size;
+      const examsAssigned = assignedExamIds.size;
 
       const lastActivityDoc = studentResults.reduce((latest, r) => {
         const t = r.submittedAt || r.updatedAt;

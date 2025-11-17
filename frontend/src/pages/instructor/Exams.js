@@ -46,7 +46,7 @@ import {
   Download,
   Share
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../../components/layout/Layout';
 import instructorService from '../../services/instructorService';
 import { toast } from 'react-toastify';
@@ -56,6 +56,7 @@ import ExamPublishDialog from '../../components/instructor/ExamPublishDialog';
 
 const InstructorExams = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [exams, setExams] = useState([]);
   const [filteredExams, setFilteredExams] = useState([]);
@@ -79,6 +80,15 @@ const InstructorExams = () => {
   useEffect(() => {
     fetchExams();
   }, [page, rowsPerPage, filters]);
+
+  // If navigated from dashboard with "Create Exam" quick action, open the dialog
+  useEffect(() => {
+    if (location.state && location.state.openCreateExam) {
+      handleCreateExam();
+    }
+    // We intentionally omit handleCreateExam from deps to avoid re-opening on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const fetchExams = async () => {
     try {
@@ -441,11 +451,19 @@ const InstructorExams = () => {
                       <TableCell>
                         <Box>
                           <Typography variant="body2">
-                            {exam.stats?.studentsEnrolled || 0} enrolled
+                            {(exam.stats?.studentsEnrolled ?? exam.eligibility?.students?.length) || 0} enrolled
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
                             {exam.stats?.studentsCompleted || 0} completed
                           </Typography>
+                          {Array.isArray(exam.eligibility?.students) && exam.eligibility.students.length > 0 && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                              {exam.eligibility.students
+                                .map((s) => s?.name || s?.email || '')
+                                .filter(Boolean)
+                                .join(', ')}
+                            </Typography>
+                          )}
                         </Box>
                       </TableCell>
                       <TableCell>

@@ -90,10 +90,12 @@ const InstructorDashboard = () => {
   const handleQuickAction = (action) => {
     switch (action) {
       case 'create-exam':
-        navigate('/instructor/exams/create');
+        // Navigate to exams page and open the exam creation dialog there
+        navigate('/instructor/exams', { state: { openCreateExam: true } });
         break;
       case 'create-question':
-        navigate('/instructor/questions/create');
+        // Navigate to questions page and open the question creation dialog there
+        navigate('/instructor/questions', { state: { openCreateQuestion: true } });
         break;
       case 'view-students':
         navigate('/instructor/students');

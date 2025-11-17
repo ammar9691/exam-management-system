@@ -88,7 +88,7 @@ const InstructorExamCreationDialog = ({ open, onClose, onSuccess, editMode = fal
     }
   };
 
-  const handleInputChange = (field, value) => {
+  const handleInputChange = (field, valuae) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
