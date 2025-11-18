@@ -1,61 +1,48 @@
 import api from './api.js';
 
 const studentService = {
+  // Dashboard stats for the logged-in student
   getStats: async () => {
-    // Get user dashboard data for student stats
-    return await api.get('/users/dashboard');
+    const res = await api.get('/student/dashboard');
+    // Backend uses sendSuccessResponse({ data: stats })
+    return res.data?.data || res.data || {};
   },
 
+  // Upcoming exams the student is eligible for
   getUpcomingExams: async () => {
-    // Get exams with active status
-    return await api.get('/exams', { params: { status: 'active' } });
+    const res = await api.get('/student/exams/upcoming');
+    return res.data?.data || res.data || [];
   },
 
+  // Recent results for the student (simplified shape)
   getRecentResults: async () => {
-    // Get user's results
-    return await api.get('/results/my');
+    const res = await api.get('/student/results/my');
+    return res.data?.data || res.data || [];
   },
 
-  getExamHistory: async () => {
-    // Get exams history
-    return await api.get('/exams/history');
+  // Exam history (paginated) – returns { data, pagination, ... }
+  getExamHistory: async (params = {}) => {
+    const res = await api.get('/student/exams/history', { params });
+    return res.data || {};
   },
 
+  // Detailed result for a specific attempt
   getResultDetails: async (resultId) => {
-    return await api.get(`/results/${resultId}`);
+    const res = await api.get(`/student/results/${resultId}`);
+    return res.data?.data || res.data || {};
   },
 
-  // Additional methods for exam functionality
+  // Exams currently available for the student to take
   getExams: async () => {
-    return await api.get('/exams');
+    const res = await api.get('/student/exams');
+    return res.data?.data || res.data || [];
   },
 
-  getExamById: async (examId) => {
-    return await api.get(`/exams/${examId}`);
-  },
-
-  startExam: async (examId) => {
-    return await api.post(`/exams/${examId}/start`);
-  },
-
-  saveExamProgress: async (examId, progressData) => {
-    return await api.post(`/exams/${examId}/progress`, progressData);
-  },
-
-  getExamProgress: async (examId) => {
-    return await api.get(`/exams/${examId}/progress`);
-  },
-
-  submitExam: async (submissionData) => {
-    return await api.post('/exams/submit', submissionData);
-  },
-
+  // All results for the student (currently using the student-specific recent results)
+  // If you later need full pagination, switch this to /results/my and handle pagination.
   getResults: async (params = {}) => {
-    return await api.get('/results', { params });
-  },
-
-  getDashboardStats: async () => {
-    return await api.get('/users/dashboard');
+    const res = await api.get('/student/results/my', { params });
+    return res.data?.data || res.data || [];
   }
 };
 

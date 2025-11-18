@@ -56,9 +56,26 @@ const StudentExams = () => {
   const fetchExams = async () => {
     try {
       setLoading(true);
-      const response = await studentService.getExams();
-      
-      // Categorize exams based on their status and timing
+
+      // Fetch currently available exams (active), upcoming exams, and history for completed/attempted exams
+      const [availableExamsRaw, upcomingExamsRaw, historyRaw] = await Promise.all([
+        studentService.getExams(),
+        studentService.getUpcomingExams(),
+        studentService.getExamHistory({ page: 1, limit: 1000 })
+      ]);
+
+      const availableExams = Array.isArray(availableExamsRaw) ? availableExamsRaw : [];
+      const upcomingExams = Array.isArray(upcomingExamsRaw) ? upcomingExamsRaw : [];
+      const historyData = Array.isArray(historyRaw.data) ? historyRaw.data : (Array.isArray(historyRaw) ? historyRaw : []);
+
+      // Build a map of examId -> latest history record for that exam
+      const historyByExam = new Map();
+      historyData.forEach((h) => {
+        const examId = h.exam?._id || h.exam;
+        if (!examId) return;
+        historyByExam.set(String(examId), h);
+      });
+
       const now = new Date();
       const categorized = {
         upcoming: [],
@@ -66,23 +83,58 @@ const StudentExams = () => {
         completed: []
       };
 
-      response.data.forEach(exam => {
-        const startTime = new Date(exam.startTime);
-        const endTime = new Date(exam.endTime);
-        
-        if (exam.status === 'completed' || exam.userAttempted) {
-          categorized.completed.push(exam);
-        } else if (now >= startTime && now <= endTime && exam.status === 'active') {
-          categorized.active.push(exam);
-        } else if (now < startTime) {
-          categorized.upcoming.push(exam);
-        } else {
-          categorized.completed.push(exam);
+      // Active exams: those currently available and not yet attempted (no history entry)
+      availableExams.forEach(exam => {
+        const examId = String(exam._id);
+        const startTime = exam.startTime ? new Date(exam.startTime) : null;
+        const endTime = exam.endTime ? new Date(exam.endTime) : null;
+        const inWindow = startTime && endTime && now >= startTime && now <= endTime;
+        const hasHistory = historyByExam.has(examId);
+
+        if (inWindow && exam.status === 'active' && !hasHistory) {
+          categorized.active.push({
+            ...exam,
+            userAttempted: false
+          });
         }
+      });
+
+      // Upcoming exams: from dedicated upcoming endpoint (assigned but not yet started)
+      upcomingExams.forEach(exam => {
+        const examId = String(exam._id);
+        const hasHistory = historyByExam.has(examId);
+        categorized.upcoming.push({
+          ...exam,
+          status: 'upcoming',
+          userAttempted: hasHistory
+        });
+      });
+
+      // Completed/attempted exams: from history
+      historyData.forEach(h => {
+        if (!h.exam) return;
+        const examId = h.exam._id || h.exam;
+        categorized.completed.push({
+          _id: examId,
+          title: h.exam.title,
+          description: '',
+          subject: h.exam.subject,
+          duration: null,
+          totalMarks: h.exam.totalMarks || h.scoring?.totalMarks || h.totalMarks,
+          startTime: h.submittedAt,
+          endTime: h.submittedAt,
+          instructions: '',
+          status: 'completed',
+          userAttempted: true,
+          userScore: h.scoring?.marksObtained ?? h.marksObtained,
+          percentage: h.scoring?.percentage ?? h.percentage,
+          questions: [],
+        });
       });
 
       setExams(categorized);
     } catch (error) {
+      console.error('Error fetching exams:', error);
       toast.error('Error fetching exams');
     } finally {
       setLoading(false);
@@ -127,35 +179,37 @@ const StudentExams = () => {
 
   const getStatusColor = (exam) => {
     const now = new Date();
-    const startTime = new Date(exam.startTime);
-    const endTime = new Date(exam.endTime);
-    
+    const startTime = exam.startTime ? new Date(exam.startTime) : null;
+    const endTime = exam.endTime ? new Date(exam.endTime) : null;
+
     if (exam.userAttempted) return 'success';
-    if (now >= startTime && now <= endTime && exam.status === 'active') return 'warning';
-    if (now < startTime) return 'info';
+    if (startTime && endTime && now >= startTime && now <= endTime && exam.status === 'active') return 'warning';
+    if (startTime && now < startTime) return 'info';
     return 'default';
   };
 
   const getStatusText = (exam) => {
     const now = new Date();
-    const startTime = new Date(exam.startTime);
-    const endTime = new Date(exam.endTime);
-    
+    const startTime = exam.startTime ? new Date(exam.startTime) : null;
+    const endTime = exam.endTime ? new Date(exam.endTime) : null;
+
     if (exam.userAttempted) return 'Completed';
-    if (now >= startTime && now <= endTime && exam.status === 'active') return 'Active';
-    if (now < startTime) return 'Upcoming';
-    if (now > endTime) return 'Expired';
+    if (startTime && endTime && now >= startTime && now <= endTime && exam.status === 'active') return 'Active';
+    if (startTime && now < startTime) return 'Upcoming';
+    if (endTime && now > endTime) return 'Expired';
     return 'Inactive';
   };
 
   const canStartExam = (exam) => {
     const now = new Date();
-    const startTime = new Date(exam.startTime);
-    const endTime = new Date(exam.endTime);
-    
-    return !exam.userAttempted && 
-           now >= startTime && 
-           now <= endTime && 
+    const startTime = exam.startTime ? new Date(exam.startTime) : null;
+    const endTime = exam.endTime ? new Date(exam.endTime) : null;
+
+    return !exam.userAttempted &&
+           startTime &&
+           endTime &&
+           now >= startTime &&
+           now <= endTime &&
            exam.status === 'active';
   };
 
@@ -228,7 +282,7 @@ const StudentExams = () => {
             {exam.userAttempted && exam.userScore !== undefined && (
               <Box sx={{ p: 1, bgcolor: 'success.lighter', borderRadius: 1 }}>
                 <Typography variant="body2" color="success.main">
-                  Your Score: {exam.userScore}/{exam.totalMarks} ({Math.round((exam.userScore/exam.totalMarks)*100)}%)
+                  Your Score: {exam.userScore}/{exam.totalMarks} ({Math.round((exam.userScore / (exam.totalMarks || 1)) * 100)}%)
                 </Typography>
               </Box>
             )}

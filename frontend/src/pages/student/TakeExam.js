@@ -105,15 +105,17 @@ const TakeExam = () => {
 
   const handleSubmitExam = async () => {
     try {
+      // Backend expects an array of { question, selectedOptions: [], timeSpent?, textAnswer? }
       const formattedAnswers = Object.entries(answers).map(([questionIndex, answer]) => ({
         question: exam.questions[questionIndex]._id,
-        selectedOption: answer
+        selectedOptions: answer === null || answer === undefined ? [] : [answer]
       }));
 
       await examService.submitExam(id, formattedAnswers);
       toast.success('Exam submitted successfully!');
       navigate('/student/results');
     } catch (error) {
+      console.error('Error submitting exam:', error);
       toast.error('Error submitting exam');
     }
   };

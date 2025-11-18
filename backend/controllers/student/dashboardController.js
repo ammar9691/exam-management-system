@@ -77,7 +77,7 @@ export const getUpcomingExams = asyncHandler(async (req, res) => {
     'schedule.startTime': { $gt: new Date() },
     'eligibility.students': { $in: [studentId] }
   })
-    .select('title description subject duration totalMarks schedule instructions')
+    .select('title description subject duration totalMarks schedule instructions status')
     .sort({ 'schedule.startTime': 1 })
     .limit(10);
 
@@ -91,7 +91,8 @@ export const getUpcomingExams = asyncHandler(async (req, res) => {
     totalMarks: exam.totalMarks,
     startTime: exam.schedule.startTime,
     endTime: exam.schedule.endTime,
-    instructions: exam.instructions
+    instructions: exam.instructions,
+    status: exam.status
   }));
 
   sendSuccessResponse(res, 'Upcoming exams retrieved successfully', examsWithDetails);
@@ -141,14 +142,17 @@ export const getAvailableExams = asyncHandler(async (req, res) => {
     'schedule.endTime': { $gte: new Date() },
     'eligibility.students': { $in: [studentId] }
   })
-    .select('title description subject duration totalMarks schedule instructions settings')
+    .select('title description subject duration totalMarks schedule instructions settings status')
     .sort({ 'schedule.startTime': 1 });
 
   // Check which exams student has already attempted
-  const attemptedExams = await Result.find({
+  const attemptedExamIdsRaw = await Result.find({
     student: studentId,
     exam: { $in: availableExams.map(e => e._id) }
   }).distinct('exam');
+
+  // Normalize attempted exam IDs to string for reliable comparison
+  const attemptedExamIds = attemptedExamIdsRaw.map(id => id.toString());
 
   const examsWithStatus = availableExams.map(exam => ({
     _id: exam._id,
@@ -160,7 +164,8 @@ export const getAvailableExams = asyncHandler(async (req, res) => {
     startTime: exam.schedule.startTime,
     endTime: exam.schedule.endTime,
     instructions: exam.instructions,
-    hasAttempted: attemptedExams.includes(exam._id),
+    status: exam.status,
+    hasAttempted: attemptedExamIds.includes(exam._id.toString()),
     maxAttempts: exam.eligibility.maxAttempts || 1,
     timeRemaining: Math.max(0, (exam.schedule.endTime - new Date()) / (1000 * 60)) // in minutes
   }));

@@ -36,6 +36,7 @@ const StudentDashboard = () => {
     upcomingExams: 0
   });
   const [upcomingExams, setUpcomingExams] = useState([]);
+  const [activeExams, setActiveExams] = useState([]);
   const [recentResults, setRecentResults] = useState([]);
 
   useEffect(() => {
@@ -45,15 +46,17 @@ const StudentDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, examsRes, resultsRes] = await Promise.all([
+      const [statsData, upcomingData, recentData, availableExams] = await Promise.all([
         studentService.getStats(),
         studentService.getUpcomingExams(),
-        studentService.getRecentResults()
+        studentService.getRecentResults(),
+        studentService.getExams()
       ]);
-      
-      setStats(statsRes.data);
-      setUpcomingExams(examsRes.data);
-      setRecentResults(resultsRes.data);
+
+      setStats(statsData || {});
+      setUpcomingExams(Array.isArray(upcomingData) ? upcomingData : []);
+      setRecentResults(Array.isArray(recentData) ? recentData : []);
+      setActiveExams(Array.isArray(availableExams) ? availableExams : []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -111,6 +114,69 @@ const StudentDashboard = () => {
               color="info"
             />
           </Grid>
+        </Grid>
+
+        {/* Active Exams */}
+        <Typography variant="h5" sx={{ mb: 2 }}>
+          Active Exams
+        </Typography>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {activeExams.length === 0 ? (
+            <Grid item xs={12}>
+              <Paper sx={{ p: 3, textAlign: 'center' }}>
+                <Typography color="text.secondary">
+                  No active exams available to attempt.
+                </Typography>
+              </Paper>
+            </Grid>
+          ) : (
+            activeExams.map((exam) => (
+              <Grid item xs={12} md={6} lg={4} key={exam._id}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      {exam.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      {exam.description || 'No description available'}
+                    </Typography>
+                    <Box sx={{ mb: 2 }}>
+                      <Chip
+                        icon={<Timer />}
+                        label={formatDuration(exam.duration)}
+                        size="small"
+                        sx={{ mr: 1 }}
+                      />
+                      <Chip
+                        label={`${exam.totalMarks} marks`}
+                        size="small"
+                      />
+                    </Box>
+                    <Typography variant="caption" display="block">
+                      Start: {formatDate(exam.startTime)}
+                    </Typography>
+                    <Typography variant="caption" display="block">
+                      End: {formatDate(exam.endTime)}
+                    </Typography>
+                  </CardContent>
+                  <CardActions>
+                    <Button
+                      size="small"
+                      color="primary"
+                      onClick={() => handleStartExam(exam._id)}
+                      disabled={new Date(exam.startTime) > new Date() || new Date(exam.endTime) < new Date()}
+                    >
+                      {new Date(exam.startTime) > new Date()
+                        ? 'Not Started'
+                        : new Date(exam.endTime) < new Date()
+                          ? 'Expired'
+                          : 'Start Exam'}
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))
+          )}
         </Grid>
 
         {/* Upcoming Exams */}

@@ -64,10 +64,12 @@ const StudentResults = () => {
   const fetchResults = async () => {
     try {
       setLoading(true);
-      const response = await studentService.getResults();
-      setResults(response.data);
-      calculateStats(response.data);
+      const data = await studentService.getResults();
+      const resultsArray = Array.isArray(data) ? data : [];
+      setResults(resultsArray);
+      calculateStats(resultsArray);
     } catch (error) {
+      console.error('Error fetching results:', error);
       toast.error('Error fetching results');
     } finally {
       setLoading(false);
@@ -76,10 +78,10 @@ const StudentResults = () => {
 
   const calculateStats = (resultsData) => {
     const totalExams = resultsData.length;
-    const scores = resultsData.map(r => (r.score / r.totalMarks) * 100);
+    const scores = resultsData.map(r => (r.marksObtained / (r.totalMarks || 1)) * 100);
     const averageScore = totalExams > 0 ? scores.reduce((a, b) => a + b, 0) / totalExams : 0;
     const highestScore = totalExams > 0 ? Math.max(...scores) : 0;
-    const passedExams = resultsData.filter(r => ((r.score / r.totalMarks) * 100) >= 50).length;
+    const passedExams = resultsData.filter(r => ((r.marksObtained / (r.totalMarks || 1)) * 100) >= 50).length;
     const failedExams = totalExams - passedExams;
 
     setStats({
@@ -91,9 +93,19 @@ const StudentResults = () => {
     });
   };
 
-  const handleViewDetails = (result) => {
-    setSelectedResult(result);
-    setDetailDialog(true);
+  const handleViewDetails = async (row) => {
+    try {
+      setLoading(true);
+      // Fetch full result details including question-wise breakdown
+      const detailed = await studentService.getResultDetails(row._id);
+      setSelectedResult(detailed);
+      setDetailDialog(true);
+    } catch (error) {
+      console.error('Error loading result details:', error);
+      toast.error('Failed to load result details');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCloseDialog = () => {
@@ -128,24 +140,24 @@ const StudentResults = () => {
   // Chart data
   const performanceData = results.map((result, index) => ({
     exam: `Exam ${index + 1}`,
-    score: Math.round((result.score / result.totalMarks) * 100),
+    score: Math.round((result.marksObtained / (result.totalMarks || 1)) * 100),
     name: result.exam?.title?.substring(0, 10) || `Exam ${index + 1}`
   }));
 
   const gradeDistribution = [
-    { name: 'A+ (90-100)', value: results.filter(r => (r.score/r.totalMarks)*100 >= 90).length, color: '#4caf50' },
-    { name: 'A (80-89)', value: results.filter(r => (r.score/r.totalMarks)*100 >= 80 && (r.score/r.totalMarks)*100 < 90).length, color: '#8bc34a' },
-    { name: 'B+ (70-79)', value: results.filter(r => (r.score/r.totalMarks)*100 >= 70 && (r.score/r.totalMarks)*100 < 80).length, color: '#ffc107' },
-    { name: 'B (60-69)', value: results.filter(r => (r.score/r.totalMarks)*100 >= 60 && (r.score/r.totalMarks)*100 < 70).length, color: '#ff9800' },
-    { name: 'C (50-59)', value: results.filter(r => (r.score/r.totalMarks)*100 >= 50 && (r.score/r.totalMarks)*100 < 60).length, color: '#f44336' },
-    { name: 'F (0-49)', value: results.filter(r => (r.score/r.totalMarks)*100 < 50).length, color: '#9c27b0' }
+    { name: 'A+ (90-100)', value: results.filter(r => (r.marksObtained/(r.totalMarks || 1))*100 >= 90).length, color: '#4caf50' },
+    { name: 'A (80-89)', value: results.filter(r => (r.marksObtained/(r.totalMarks || 1))*100 >= 80 && (r.marksObtained/(r.totalMarks || 1))*100 < 90).length, color: '#8bc34a' },
+    { name: 'B+ (70-79)', value: results.filter(r => (r.marksObtained/(r.totalMarks || 1))*100 >= 70 && (r.marksObtained/(r.totalMarks || 1))*100 < 80).length, color: '#ffc107' },
+    { name: 'B (60-69)', value: results.filter(r => (r.marksObtained/(r.totalMarks || 1))*100 >= 60 && (r.marksObtained/(r.totalMarks || 1))*100 < 70).length, color: '#ff9800' },
+    { name: 'C (50-59)', value: results.filter(r => (r.marksObtained/(r.totalMarks || 1))*100 >= 50 && (r.marksObtained/(r.totalMarks || 1))*100 < 60).length, color: '#f44336' },
+    { name: 'F (0-49)', value: results.filter(r => (r.marksObtained/(r.totalMarks || 1))*100 < 50).length, color: '#9c27b0' }
   ].filter(item => item.value > 0);
 
   const subjectWisePerformance = {
-    Math: results.filter(r => r.exam?.subject === 'Mathematics').map(r => (r.score/r.totalMarks)*100),
-    Physics: results.filter(r => r.exam?.subject === 'Physics').map(r => (r.score/r.totalMarks)*100),
-    Chemistry: results.filter(r => r.exam?.subject === 'Chemistry').map(r => (r.score/r.totalMarks)*100),
-    Biology: results.filter(r => r.exam?.subject === 'Biology').map(r => (r.score/r.totalMarks)*100)
+    Math: results.filter(r => r.exam?.subject === 'Mathematics').map(r => (r.marksObtained/(r.totalMarks || 1))*100),
+    Physics: results.filter(r => r.exam?.subject === 'Physics').map(r => (r.marksObtained/(r.totalMarks || 1))*100),
+    Chemistry: results.filter(r => r.exam?.subject === 'Chemistry').map(r => (r.marksObtained/(r.totalMarks || 1))*100),
+    Biology: results.filter(r => r.exam?.subject === 'Biology').map(r => (r.marksObtained/(r.totalMarks || 1))*100)
   };
 
   const subjectData = Object.keys(subjectWisePerformance)
@@ -372,7 +384,7 @@ const StudentResults = () => {
                 </TableHead>
                 <TableBody>
                   {results.map((result) => {
-                    const percentage = Math.round((result.score / result.totalMarks) * 100);
+                    const percentage = Math.round((result.marksObtained / (result.totalMarks || 1)) * 100);
                     const grade = getGradeLetter(percentage);
                     const status = getStatusText(percentage);
                     
@@ -392,7 +404,7 @@ const StudentResults = () => {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2">
-                            {result.score}/{result.totalMarks}
+                            {result.marksObtained}/{result.totalMarks}
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -450,7 +462,7 @@ const StudentResults = () => {
         <Dialog
           open={detailDialog}
           onClose={handleCloseDialog}
-          maxWidth="md"
+          maxWidth="lg"
           fullWidth
         >
           <DialogTitle>
@@ -482,8 +494,8 @@ const StudentResults = () => {
                           <Grade fontSize="small" />
                         </ListItemIcon>
                         <ListItemText 
-                          primary={`Score: ${selectedResult.score}/${selectedResult.totalMarks}`}
-                          secondary={`${Math.round((selectedResult.score / selectedResult.totalMarks) * 100)}%`}
+                          primary={`Score: ${selectedResult.marksObtained}/${selectedResult.totalMarks}`}
+                          secondary={`${Math.round((selectedResult.marksObtained / (selectedResult.totalMarks || 1)) * 100)}%`}
                         />
                       </ListItem>
                       <ListItem>
@@ -491,8 +503,8 @@ const StudentResults = () => {
                           <Assessment fontSize="small" />
                         </ListItemIcon>
                         <ListItemText 
-                          primary={`Grade: ${getGradeLetter(Math.round((selectedResult.score / selectedResult.totalMarks) * 100))}`}
-                          secondary={getStatusText(Math.round((selectedResult.score / selectedResult.totalMarks) * 100))}
+                          primary={`Grade: ${getGradeLetter(Math.round((selectedResult.marksObtained / (selectedResult.totalMarks || 1)) * 100))}`}
+                          secondary={getStatusText(Math.round((selectedResult.marksObtained / (selectedResult.totalMarks || 1)) * 100))}
                         />
                       </ListItem>
                       <ListItem>
@@ -519,13 +531,13 @@ const StudentResults = () => {
                       </Typography>
                       <LinearProgress
                         variant="determinate"
-                        value={Math.round((selectedResult.score / selectedResult.totalMarks) * 100)}
-                        color={getGradeColor(Math.round((selectedResult.score / selectedResult.totalMarks) * 100))}
+                        value={Math.round((selectedResult.marksObtained / (selectedResult.totalMarks || 1)) * 100)}
+                        color={getGradeColor(Math.round((selectedResult.marksObtained / (selectedResult.totalMarks || 1)) * 100))}
                         sx={{ height: 8, borderRadius: 4, mb: 2 }}
                       />
                       <Typography variant="body2" color="text.secondary">
-                        You scored {Math.round((selectedResult.score / selectedResult.totalMarks) * 100)}% in this exam.
-                        {Math.round((selectedResult.score / selectedResult.totalMarks) * 100) >= 50 
+                        You scored {Math.round((selectedResult.marksObtained / (selectedResult.totalMarks || 1)) * 100)}% in this exam.
+                        {Math.round((selectedResult.marksObtained / (selectedResult.totalMarks || 1)) * 100) >= 50 
                           ? ' Congratulations on passing!' 
                           : ' Keep studying and try again next time.'}
                       </Typography>
@@ -538,10 +550,82 @@ const StudentResults = () => {
                   <Typography variant="subtitle1" gutterBottom>
                     Question-wise Breakdown
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Detailed question-wise analysis would be displayed here based on your answers.
-                    This includes correct/incorrect answers, time spent per question, and topic-wise performance.
-                  </Typography>
+                  {Array.isArray(selectedResult.questions) && selectedResult.questions.length > 0 ? (
+                    <TableContainer component={Paper}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>#</TableCell>
+                            <TableCell>Question</TableCell>
+                            <TableCell>Options</TableCell>
+                            <TableCell align="right">Marks</TableCell>
+                            <TableCell align="right">Time (s)</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {selectedResult.questions.map((q) => {
+                            return (
+                              <TableRow key={q.questionId || q.index} hover>
+                                <TableCell>{q.index + 1}</TableCell>
+                                <TableCell>
+                                  <Typography variant="body2" sx={{ mb: 1 }}>
+                                    {q.text || 'Question not available'}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {q.subject && `${q.subject}`} {q.topic && `• ${q.topic}`} {q.difficulty && `• ${q.difficulty}`}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  {Array.isArray(q.options) && q.options.length > 0 ? (
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                      {q.options.map((opt) => {
+                                        const selected = opt.isSelected;
+                                        const correct = opt.isCorrect;
+                                        let color: any = 'default';
+                                        if (selected && correct) color = 'success';
+                                        else if (selected && !correct) color = 'error';
+                                        else if (!selected && correct) color = 'info';
+                                        return (
+                                          <Chip
+                                            key={opt.index}
+                                            label={opt.text}
+                                            size="small"
+                                            color={color}
+                                            variant={selected ? 'filled' : 'outlined'}
+                                          />
+                                        );
+                                      })}
+                                    </Box>
+                                  ) : (
+                                    <Typography variant="caption" color="text.secondary">
+                                      No options available.
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="body2">
+                                    {q.marksObtained}/{q.marksAssigned || 1}
+                                  </Typography>
+                                  <Typography variant="caption" color={q.isCorrect ? 'success.main' : 'error.main'}>
+                                    {q.isCorrect ? 'Correct' : 'Incorrect'}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="body2">
+                                    {q.timeSpent || 0}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      No question-level data available for this result.
+                    </Typography>
+                  )}
                 </Grid>
               </Grid>
             )}
