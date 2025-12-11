@@ -6,8 +6,9 @@ const answerSchema = new mongoose.Schema({
     ref: 'Question',
     required: true
   },
+  // Stores indexes of selected options for the question (0-based indices)
   selectedOptions: [{
-    type: mongoose.Schema.Types.ObjectId
+    type: Number
   }],
   textAnswer: {
     type: String,

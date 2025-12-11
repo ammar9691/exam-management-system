@@ -180,14 +180,21 @@ export const getExamHistory = asyncHandler(async (req, res) => {
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  const results = await Result.find({ student: studentId })
+  // Only include finalized attempts in exam history to avoid treating in-progress
+  // attempts as completed/failed exams in the UI.
+  const resultFilter = {
+    student: studentId,
+    status: { $in: ['completed', 'submitted', 'auto-submitted'] }
+  };
+
+  const results = await Result.find(resultFilter)
     .populate('exam', 'title subject totalMarks')
     .sort({ submittedAt: -1 })
     .skip(skip)
     .limit(parseInt(limit))
     .select('scoring exam submittedAt status stats');
 
-  const total = await Result.countDocuments({ student: studentId });
+  const total = await Result.countDocuments(resultFilter);
 
   const pagination = {
     page: parseInt(page),
@@ -199,9 +206,12 @@ export const getExamHistory = asyncHandler(async (req, res) => {
   const examHistory = results.map(result => ({
     _id: result._id,
     exam: result.exam,
+    status: result.status,
     percentage: result.scoring.percentage,
     grade: result.scoring.grade,
     passed: result.scoring.passed,
+    marksObtained: result.scoring.marksObtained,
+    totalMarks: result.scoring.totalMarks,
     submittedAt: result.submittedAt,
     totalQuestions: result.stats.totalQuestions,
     correctAnswers: result.stats.correctAnswers,

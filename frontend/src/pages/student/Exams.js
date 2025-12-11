@@ -68,9 +68,15 @@ const StudentExams = () => {
       const upcomingExams = Array.isArray(upcomingExamsRaw) ? upcomingExamsRaw : [];
       const historyData = Array.isArray(historyRaw.data) ? historyRaw.data : (Array.isArray(historyRaw) ? historyRaw : []);
 
-      // Build a map of examId -> latest history record for that exam
+      // Only consider finalized attempts (completed/submitted/auto-submitted)
+      const validResultStatuses = ['completed', 'submitted', 'auto-submitted'];
+      const finishedHistory = historyData.filter((h) =>
+        h && h.status && validResultStatuses.includes(h.status)
+      );
+
+      // Build a map of examId -> latest finished history record for that exam
       const historyByExam = new Map();
-      historyData.forEach((h) => {
+      finishedHistory.forEach((h) => {
         const examId = h.exam?._id || h.exam;
         if (!examId) return;
         historyByExam.set(String(examId), h);
@@ -110,8 +116,8 @@ const StudentExams = () => {
         });
       });
 
-      // Completed/attempted exams: from history
-      historyData.forEach(h => {
+      // Completed/attempted exams: from finished history
+      finishedHistory.forEach(h => {
         if (!h.exam) return;
         const examId = h.exam._id || h.exam;
         categorized.completed.push({
@@ -120,14 +126,14 @@ const StudentExams = () => {
           description: '',
           subject: h.exam.subject,
           duration: null,
-          totalMarks: h.exam.totalMarks || h.scoring?.totalMarks || h.totalMarks,
+          totalMarks: h.exam.totalMarks || h.totalMarks,
           startTime: h.submittedAt,
           endTime: h.submittedAt,
           instructions: '',
-          status: 'completed',
+          status: h.status || 'completed',
           userAttempted: true,
-          userScore: h.scoring?.marksObtained ?? h.marksObtained,
-          percentage: h.scoring?.percentage ?? h.percentage,
+          userScore: h.marksObtained,
+          percentage: h.percentage,
           questions: [],
         });
       });
