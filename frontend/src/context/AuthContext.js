@@ -45,10 +45,10 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authService.register(userData);
-      setUser(response.user);
-      setIsAuthenticated(true);
-      toast.success('Registration successful!');
-      return { success: true, user: response.user };
+      // Don't set user or isAuthenticated for pending accounts
+      // User will need admin approval before they can login
+      toast.success('Registration successful! Your account is pending approval by an administrator.');
+      return { success: true, user: response.user, pending: true };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Registration failed' };
     }

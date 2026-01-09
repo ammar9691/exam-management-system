@@ -22,34 +22,43 @@ import {
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, role = 'student', phone } = req.body;
 
+  // Prevent admin registration through public API
+  if (role === 'admin') {
+    return sendErrorResponse(res, 'Admin accounts cannot be created through registration. Please contact system administrator.', 403);
+  }
+
+  // Only allow student and instructor roles
+  if (!['student', 'instructor'].includes(role)) {
+    return sendValidationErrorResponse(res, 'Invalid role. Only student and instructor roles are allowed.');
+  }
+
   // Check if user already exists
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return sendErrorResponse(res, 'User already exists with this email', 409);
   }
 
-  // Create new user
+  // Create new user with pending status (default from model)
   const user = new User({
     name,
     email,
     password,
     role,
+    status: 'pending', // Explicitly set pending status - requires admin approval
     profile: { phone }
   });
 
   await user.save();
 
-  // Generate JWT token
-  const token = user.generateAuthToken();
-
+  // Don't generate token for pending users - they can't login yet
   // Remove password from response
   const userResponse = user.toObject();
   delete userResponse.password;
   delete userResponse.security;
 
-  sendSuccessResponse(res, 'User registered successfully', {
+  sendSuccessResponse(res, 'Registration successful! Your account is pending approval by an administrator. You will receive an email once your account is activated.', {
     user: userResponse,
-    token
+    message: 'Please wait for administrator approval before logging in'
   }, 201);
 });
 
@@ -77,8 +86,12 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   // Check if user is active
+  if (user.status === 'pending') {
+    return sendAuthErrorResponse(res, 'Your account is pending administrator approval. Please wait for activation.');
+  }
+
   if (user.status !== 'active') {
-    return sendAuthErrorResponse(res, 'Account is not active');
+    return sendAuthErrorResponse(res, 'Your account is not active. Please contact administrator.');
   }
 
   // Reset login attempts on successful login

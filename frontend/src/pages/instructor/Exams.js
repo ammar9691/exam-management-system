@@ -524,6 +524,15 @@ const InstructorExams = () => {
             <Edit sx={{ mr: 1 }} />
             Edit
           </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setPublishDialog({ open: true, exam: selectedExam });
+              handleMenuClose();
+            }}
+          >
+            <Assignment sx={{ mr: 1 }} />
+            Assign Students
+          </MenuItem>
           <MenuItem onClick={() => handleViewResults(selectedExam)}>
             <School sx={{ mr: 1 }} />
             View Results
@@ -534,19 +543,36 @@ const InstructorExams = () => {
               Monitor Live
             </MenuItem>
           )}
-          <MenuItem
-            onClick={() => {
-              setStatusDialog({
-                open: true,
-                exam: selectedExam,
-                newStatus: selectedExam?.status === 'active' ? 'draft' : 'active'
-              });
-              handleMenuClose();
-            }}
-          >
-            {selectedExam?.status === 'active' ? <Stop sx={{ mr: 1 }} /> : <PlayArrow sx={{ mr: 1 }} />}
-            {selectedExam?.status === 'active' ? 'Unpublish' : 'Publish'}
-          </MenuItem>
+          {selectedExam?.status !== 'active' && (
+            <MenuItem
+              onClick={() => {
+                setStatusDialog({
+                  open: true,
+                  exam: selectedExam,
+                  newStatus: 'active'
+                });
+                handleMenuClose();
+              }}
+            >
+              <PlayArrow sx={{ mr: 1 }} />
+              Publish
+            </MenuItem>
+          )}
+          {selectedExam?.status === 'active' && (
+            <MenuItem
+              onClick={() => {
+                setStatusDialog({
+                  open: true,
+                  exam: selectedExam,
+                  newStatus: 'draft'
+                });
+                handleMenuClose();
+              }}
+            >
+              <Stop sx={{ mr: 1 }} />
+              Unpublish
+            </MenuItem>
+          )}
           <MenuItem
             onClick={() => {
               setDeleteDialog({ open: true, exam: selectedExam });

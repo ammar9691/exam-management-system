@@ -59,14 +59,22 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setLoading(true);
     const result = await register(formData);
-    
-    if (result.success && result.user) {
-      navigate(`/${result.user.role}/dashboard`);
+
+    if (result.success) {
+      // For pending accounts, redirect to login page
+      if (result.pending) {
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000); // Give user time to read the success message
+      } else if (result.user) {
+        // If somehow approved immediately, go to dashboard
+        navigate(`/${result.user.role}/dashboard`);
+      }
     } else {
       setErrors({ submit: result.error || 'Registration failed. Please try again.' });
     }
@@ -84,9 +92,16 @@ const Register = () => {
         }}
       >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-          <Typography component="h1" variant="h5" align="center" sx={{ mb: 3 }}>
-            Create Account
+          <Typography component="h1" variant="h5" align="center" sx={{ mb: 1 }}>
+            Join Skyline Aviation Academy
           </Typography>
+          <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
+            Register for pilot training and certification programs
+          </Typography>
+
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Your account will require administrator approval before you can access the platform.
+          </Alert>
 
           {errors.submit && (
             <Alert severity="error" sx={{ mb: 2 }}>{errors.submit}</Alert>
@@ -129,10 +144,10 @@ const Register = () => {
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
+                  helperText="Your account will be reviewed by an administrator before activation"
                 >
-                  <MenuItem value="student">Student</MenuItem>
-                  <MenuItem value="instructor">Instructor</MenuItem>
-                  <MenuItem value="admin">Admin</MenuItem>
+                  <MenuItem value="student">Student - Pilot Trainee</MenuItem>
+                  <MenuItem value="instructor">Instructor - Training Professional</MenuItem>
                 </TextField>
               </Grid>
               

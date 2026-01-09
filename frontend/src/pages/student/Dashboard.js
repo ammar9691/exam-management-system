@@ -71,13 +71,61 @@ const StudentDashboard = () => {
   return (
     <Layout>
       <Container maxWidth="lg">
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h4" gutterBottom>
-            Welcome back, {user?.name}!
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Here's your exam overview and progress
-          </Typography>
+        {/* Aviation-themed Welcome Banner */}
+        <Box
+          sx={{
+            mb: 4,
+            p: 4,
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, #0A2463 0%, #3E92CC 100%)',
+            color: '#FFFFFF',
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: '0 8px 24px rgba(10, 36, 99, 0.15)',
+          }}
+        >
+          <Box
+            sx={{
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            <Typography
+              variant="h3"
+              sx={{
+                fontFamily: "'Montserrat', sans-serif",
+                fontWeight: 700,
+                mb: 1,
+                color: 'white'
+              }}
+            >
+              Welcome back, {user?.name}!
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: '#FFFFFF',
+                fontSize: '1.1rem',
+                fontWeight: 400,
+              }}
+            >
+              Your flight training progress and upcoming modules
+            </Typography>
+          </Box>
+
+          {/* Decorative aviation element */}
+          <Box
+            sx={{
+              position: 'absolute',
+              right: -20,
+              top: '50%',
+              transform: 'translateY(-50%) rotate(-15deg)',
+              opacity: 0.1,
+              fontSize: '120px',
+            }}
+          >
+            ✈
+          </Box>
         </Box>
 
         {/* Stats Cards */}
@@ -117,8 +165,19 @@ const StudentDashboard = () => {
         </Grid>
 
         {/* Active Exams */}
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          Active Exams
+        <Typography
+          variant="h4"
+          sx={{
+            mb: 3,
+            fontFamily: "'Montserrat', sans-serif",
+            fontWeight: 600,
+            color: '#0A2463',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          Active Training Modules
         </Typography>
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {activeExams.length === 0 ? (
@@ -180,8 +239,19 @@ const StudentDashboard = () => {
         </Grid>
 
         {/* Upcoming Exams */}
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          Upcoming Exams
+        <Typography
+          variant="h4"
+          sx={{
+            mb: 3,
+            fontFamily: "'Montserrat', sans-serif",
+            fontWeight: 600,
+            color: '#0A2463',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          Upcoming Assessments
         </Typography>
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {upcomingExams.length === 0 ? (
@@ -236,8 +306,19 @@ const StudentDashboard = () => {
         </Grid>
 
         {/* Recent Results */}
-        <Typography variant="h5" sx={{ mb: 2 }}>
-          Recent Results
+        <Typography
+          variant="h4"
+          sx={{
+            mb: 3,
+            fontFamily: "'Montserrat', sans-serif",
+            fontWeight: 600,
+            color: '#0A2463',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
+          Recent Performance
         </Typography>
         <Paper sx={{ p: 2 }}>
           {recentResults.length === 0 ? (

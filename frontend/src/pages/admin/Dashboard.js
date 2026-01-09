@@ -222,38 +222,104 @@ const AdminDashboard = () => {
   return (
     <Layout>
       <Container maxWidth="lg">
-        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography variant="h4" gutterBottom>
-              Admin Dashboard
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Welcome back! Here's what's happening with your exam system today.
-            </Typography>
+        {/* Aviation-themed Admin Header */}
+        <Box
+          sx={{
+            mb: 4,
+            p: 4,
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, #0A2463 0%, #001B3D 100%)',
+            color: '#FFFFFF',
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: '0 8px 24px rgba(10, 36, 99, 0.15)',
+          }}
+        >
+          <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+            <Box>
+              <Typography
+                variant="h3"
+                sx={{
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontWeight: 700,
+                  mb: 1,
+                  color:'white'
+                }}
+              >
+                Control Center
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{
+                  color: '#FFFFFF',
+                  fontSize: '1.1rem',
+                  fontWeight: 400,
+                  color:'white'
+                }}
+              >
+                Aviation Academy Management Dashboard
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              <Button
+                variant="outlined"
+                startIcon={<Refresh />}
+                onClick={handleRefresh}
+                disabled={refreshing}
+                sx={{
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  }
+                }}
+              >
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Download />}
+                onClick={handleExportDashboard}
+                sx={{
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  }
+                }}
+              >
+                Export
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<Analytics />}
+                onClick={() => console.log('Advanced analytics')}
+                sx={{
+                  backgroundColor: '#00B4D8',
+                  '&:hover': {
+                    backgroundColor: '#0096C7',
+                  }
+                }}
+              >
+                Analytics
+              </Button>
+            </Box>
           </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Download />}
-              onClick={handleExportDashboard}
-            >
-              Export
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<Analytics />}
-              onClick={() => console.log('Advanced analytics')}
-            >
-              Analytics
-            </Button>
+
+          {/* Decorative element */}
+          <Box
+            sx={{
+              position: 'absolute',
+              right: -30,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              opacity: 0.05,
+              fontSize: '180px',
+            }}
+          >
+            ✈
           </Box>
         </Box>
         
@@ -264,12 +330,12 @@ const AdminDashboard = () => {
         )}
 
         {/* Stats Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid container spacing={3} sx={{ mb: 5 }}>
           <Grid item xs={12} sm={6} md={3}>
             <StatsCard
               title="Total Users"
               value={stats.totalUsers}
-              icon={<People sx={{ fontSize: 40 }} />}
+              icon={<People sx={{ fontSize: 32 }} />}
               color="primary"
             />
           </Grid>
@@ -277,7 +343,7 @@ const AdminDashboard = () => {
             <StatsCard
               title="Questions"
               value={stats.totalQuestions}
-              icon={<Quiz sx={{ fontSize: 40 }} />}
+              icon={<Quiz sx={{ fontSize: 32 }} />}
               color="success"
             />
           </Grid>
@@ -285,16 +351,16 @@ const AdminDashboard = () => {
             <StatsCard
               title="Exams"
               value={stats.totalExams}
-              icon={<Assignment sx={{ fontSize: 40 }} />}
-              color="warning"
+              icon={<Assignment sx={{ fontSize: 32 }} />}
+              color="info"
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatsCard
               title="Results"
               value={stats.totalResults}
-              icon={<Assessment sx={{ fontSize: 40 }} />}
-              color="error"
+              icon={<Assessment sx={{ fontSize: 32 }} />}
+              color="warning"
             />
           </Grid>
         </Grid>
@@ -304,7 +370,15 @@ const AdminDashboard = () => {
           <Grid item xs={12} md={6}>
             <Card sx={{ height: '100%' }}>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
+                <Typography
+                  variant="h5"
+                  gutterBottom
+                  sx={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontWeight: 600,
+                    color: '#0A2463',
+                  }}
+                >
                   User Distribution
                 </Typography>
                 <ResponsiveContainer width="100%" height={300}>
@@ -333,7 +407,15 @@ const AdminDashboard = () => {
           <Grid item xs={12} md={6}>
             <Card sx={{ height: '100%' }}>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
+                <Typography
+                  variant="h5"
+                  gutterBottom
+                  sx={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontWeight: 600,
+                    color: '#0A2463',
+                  }}
+                >
                   Monthly Registrations
                 </Typography>
                 <ResponsiveContainer width="100%" height={300}>
@@ -364,7 +446,15 @@ const AdminDashboard = () => {
           <Grid item xs={12}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
+                <Typography
+                  variant="h5"
+                  gutterBottom
+                  sx={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontWeight: 600,
+                    color: '#0A2463',
+                  }}
+                >
                   Performance Trends (Last 30 Days)
                 </Typography>
                 <ResponsiveContainer width="100%" height={400}>
@@ -409,7 +499,15 @@ const AdminDashboard = () => {
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
+                <Typography
+                  variant="h5"
+                  gutterBottom
+                  sx={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontWeight: 600,
+                    color: '#0A2463',
+                  }}
+                >
                   System Health
                 </Typography>
                 <Grid container spacing={2}>
@@ -435,7 +533,15 @@ const AdminDashboard = () => {
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
+                <Typography
+                  variant="h5"
+                  gutterBottom
+                  sx={{
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontWeight: 600,
+                    color: '#0A2463',
+                  }}
+                >
                   Recent Activity
                 </Typography>
                 <Box sx={{ maxHeight: 200, overflow: 'auto' }}>

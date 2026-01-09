@@ -1,0 +1,146 @@
+/* Aviation Training Institute - CSS Variables */
+
+:root {
+  /* ===== PRIMARY COLORS ===== */
+  --color-navy: #0A2463;
+  --color-navy-dark: #001B3D;
+  --color-sky-blue: #3E92CC;
+  --color-bright-blue: #00B4D8;
+  --color-white: #FFFFFF;
+
+  /* ===== SUPPORTING COLORS ===== */
+  --color-cloud-grey: #E8F1F5;
+  --color-steel-grey: #6C757D;
+  --color-charcoal: #2C3E50;
+  --color-success: #10B981;
+  --color-success-light: #34D399;
+  --color-success-dark: #059669;
+  --color-warning: #F59E0B;
+  --color-warning-light: #FBBF24;
+  --color-warning-dark: #D97706;
+  --color-error: #DC2626;
+  --color-error-light: #EF4444;
+  --color-error-dark: #B91C1C;
+  --color-info: #00B4D8;
+  --color-silver: #CBD5E1;
+
+  /* ===== BACKGROUND COLORS ===== */
+  --bg-default: #F8FAFC;
+  --bg-paper: #FFFFFF;
+  --bg-subtle: #FAFBFC;
+  --bg-hover: #F0F9FF;
+
+  /* ===== TEXT COLORS ===== */
+  --text-primary: #2C3E50;
+  --text-secondary: #6C757D;
+  --text-disabled: #9CA3AF;
+  --text-on-primary: #FFFFFF;
+
+  /* ===== BORDER COLORS ===== */
+  --border-default: #E8F1F5;
+  --border-light: #F1F5F9;
+  --border-dark: #CBD5E1;
+
+  /* ===== SPACING (8px base grid) ===== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+  --spacing-4xl: 96px;
+
+  /* ===== TYPOGRAPHY ===== */
+  --font-heading: 'Montserrat', sans-serif;
+  --font-body: 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  /* Font Sizes */
+  --font-size-xs: 0.75rem;      /* 12px */
+  --font-size-sm: 0.875rem;     /* 14px */
+  --font-size-base: 1rem;       /* 16px */
+  --font-size-lg: 1.125rem;     /* 18px */
+  --font-size-xl: 1.25rem;      /* 20px */
+  --font-size-2xl: 1.5rem;      /* 24px */
+  --font-size-3xl: 1.75rem;     /* 28px */
+  --font-size-4xl: 2.25rem;     /* 36px */
+  --font-size-5xl: 3rem;        /* 48px */
+
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  /* ===== BORDER RADIUS ===== */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* ===== SHADOWS ===== */
+  --shadow-xs: 0 1px 2px rgba(10, 36, 99, 0.05);
+  --shadow-sm: 0 2px 8px rgba(10, 36, 99, 0.08);
+  --shadow-md: 0 4px 16px rgba(10, 36, 99, 0.10);
+  --shadow-lg: 0 8px 24px rgba(10, 36, 99, 0.15);
+  --shadow-xl: 0 12px 32px rgba(10, 36, 99, 0.18);
+  --shadow-2xl: 0 20px 60px rgba(10, 36, 99, 0.30);
+
+  /* Button Shadows */
+  --shadow-button: 0 4px 12px rgba(62, 146, 204, 0.25);
+  --shadow-button-hover: 0 6px 16px rgba(62, 146, 204, 0.35);
+
+  /* ===== TRANSITIONS ===== */
+  --transition-fast: 0.15s ease-in-out;
+  --transition-base: 0.2s ease-in-out;
+  --transition-slow: 0.3s ease-in-out;
+
+  /* ===== Z-INDEX SCALE ===== */
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-fixed: 1200;
+  --z-modal-backdrop: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-tooltip: 1600;
+
+  /* ===== LAYOUT DIMENSIONS ===== */
+  --header-height: 72px;
+  --sidebar-width-expanded: 260px;
+  --sidebar-width-collapsed: 64px;
+  --content-max-width: 1280px;
+
+  /* Card dimensions */
+  --card-min-width: 280px;
+  --card-max-width: 400px;
+
+  /* ===== GRADIENTS ===== */
+  --gradient-primary: linear-gradient(135deg, #0A2463 0%, #3E92CC 100%);
+  --gradient-primary-dark: linear-gradient(135deg, #001B3D 0%, #2E7FBC 100%);
+  --gradient-hero: linear-gradient(135deg, #0A2463 0%, #001B3D 100%);
+  --gradient-sky: linear-gradient(180deg, #3E92CC 0%, #00B4D8 100%);
+  --gradient-overlay: linear-gradient(180deg, rgba(10, 36, 99, 0.8) 0%, rgba(10, 36, 99, 0.2) 100%);
+
+  /* ===== BREAKPOINTS (for reference in JS) ===== */
+  --breakpoint-xs: 320px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* Dark mode support (optional - for future implementation) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark mode overrides can be added here when needed */
+  }
+}

@@ -137,32 +137,88 @@ const InstructorDashboard = () => {
   return (
     <Layout>
       <Container maxWidth="lg">
-        {/* Header */}
-        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography variant="h4" gutterBottom>
-              Instructor Dashboard
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Manage your exams, questions, and monitor student progress
-            </Typography>
+        {/* Aviation-themed Instructor Header */}
+        <Box
+          sx={{
+            mb: 4,
+            p: 4,
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, #0A2463 0%, #3E92CC 100%)',
+            color: '#FFFFFF',
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: '0 8px 24px rgba(10, 36, 99, 0.15)',
+          }}
+        >
+          <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+            <Box>
+              <Typography
+                variant="h3"
+                sx={{
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontWeight: 700,
+                  mb: 1,
+                  color: 'white'
+                }}
+              >
+                Instructor Dashboard
+              </Typography>
+              <Typography
+                variant="body1"
+                sx={{
+                  color: '#FFFFFF',
+                  fontSize: '1.1rem',
+                  fontWeight: 400,
+                }}
+              >
+                Manage exams, grade students, and track performance
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              <Button
+                variant="outlined"
+                startIcon={<Refresh />}
+                onClick={handleRefresh}
+                disabled={refreshing}
+                sx={{
+                  borderColor: 'rgba(255, 255, 255, 0.3)',
+                  color: '#FFFFFF',
+                  '&:hover': {
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  }
+                }}
+              >
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => handleQuickAction('create-exam')}
+                sx={{
+                  backgroundColor: '#00B4D8',
+                  '&:hover': {
+                    backgroundColor: '#0096C7',
+                  }
+                }}
+              >
+                Create Exam
+              </Button>
+            </Box>
           </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => handleQuickAction('create-exam')}
-            >
-              Create Exam
-            </Button>
+
+          {/* Decorative element */}
+          <Box
+            sx={{
+              position: 'absolute',
+              right: -30,
+              top: '50%',
+              transform: 'translateY(-50%) rotate(15deg)',
+              opacity: 0.08,
+              fontSize: '160px',
+            }}
+          >
+            ✈
           </Box>
         </Box>
 

@@ -210,18 +210,33 @@ const TakeExam = () => {
               {question.question}
             </Typography>
 
-            <FormControl component="fieldset">
+            <FormControl component="fieldset" fullWidth>
               <RadioGroup
-                value={answers[currentQuestion] || ''}
+                value={answers[currentQuestion] !== null && answers[currentQuestion] !== undefined ? answers[currentQuestion] : ''}
                 onChange={(e) => handleAnswerChange(parseInt(e.target.value))}
               >
                 {question.options.map((option, index) => (
                   <FormControlLabel
                     key={index}
                     value={index}
-                    control={<Radio />}
+                    control={<Radio sx={{ '&.Mui-checked': { color: '#3E92CC' } }} />}
                     label={option.text}
-                    sx={{ mb: 1 }}
+                    sx={{
+                      mb: 1.5,
+                      p: 2,
+                      borderRadius: 2,
+                      border: '1px solid #E8F1F5',
+                      transition: 'all 0.2s ease-in-out',
+                      '&:hover': {
+                        backgroundColor: '#F0F9FF',
+                        borderColor: '#3E92CC',
+                      },
+                      ...(answers[currentQuestion] === index && {
+                        backgroundColor: 'rgba(62, 146, 204, 0.08)',
+                        borderColor: '#3E92CC',
+                        borderWidth: '2px',
+                      }),
+                    }}
                   />
                 ))}
               </RadioGroup>

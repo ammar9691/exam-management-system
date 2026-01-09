@@ -18,11 +18,14 @@ import {
 import { toast } from 'react-toastify';
 import instructorService from '../../services/instructorService';
 
-const ExamPublishDialog = ({ open, exam, onClose, onPublished }) => {
+const ExamPublishDialog = ({ open, exam, onClose, onPublished, assignOnly = false }) => {
   const [students, setStudents] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Determine if exam is already published
+  const isPublished = exam?.status === 'active';
 
   useEffect(() => {
     if (open) {
@@ -81,17 +84,22 @@ const ExamPublishDialog = ({ open, exam, onClose, onPublished }) => {
       setSubmitting(true);
       const studentIds = Array.from(selectedIds);
 
-      // Assign selected students, then publish the exam
+      // Always assign students (works for both new publish and updating assignments)
       await instructorService.assignExamToStudents(exam._id, studentIds);
-      // Prefer publish endpoint to enforce validation rules
-      await instructorService.publishExam(exam._id);
 
-      toast.success('Exam published and assigned successfully');
+      // Only publish if exam is not already published and not assignOnly mode
+      if (!isPublished && !assignOnly) {
+        await instructorService.publishExam(exam._id);
+        toast.success('Exam published and assigned successfully');
+      } else {
+        toast.success('Student assignments updated successfully');
+      }
+
       if (onPublished) onPublished();
       onClose();
     } catch (error) {
-      console.error('Error publishing exam:', error);
-      const message = error.response?.data?.message || 'Failed to publish exam';
+      console.error('Error updating exam assignments:', error);
+      const message = error.response?.data?.message || 'Failed to update assignments';
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -100,15 +108,24 @@ const ExamPublishDialog = ({ open, exam, onClose, onPublished }) => {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Publish Exam & Assign Students</DialogTitle>
+      <DialogTitle>
+        {isPublished || assignOnly ? 'Assign Students to Exam' : 'Publish Exam & Assign Students'}
+      </DialogTitle>
       <DialogContent dividers>
         <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle1">
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
             {exam?.title}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Select the students who should be able to access this exam.
+            {isPublished || assignOnly
+              ? 'Add or remove students who can access this exam. Changes are saved immediately.'
+              : 'Select the students who should be able to access this exam.'}
           </Typography>
+          {(isPublished || assignOnly) && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Currently {selectedIds.size} student{selectedIds.size !== 1 ? 's' : ''} assigned
+            </Alert>
+          )}
         </Box>
 
         {loading ? (
@@ -156,7 +173,9 @@ const ExamPublishDialog = ({ open, exam, onClose, onPublished }) => {
           variant="contained"
           disabled={submitting || loading}
         >
-          {submitting ? 'Publishing...' : 'Publish Exam'}
+          {submitting
+            ? (isPublished || assignOnly ? 'Updating...' : 'Publishing...')
+            : (isPublished || assignOnly ? 'Update Assignments' : 'Publish Exam')}
         </Button>
       </DialogActions>
     </Dialog>
