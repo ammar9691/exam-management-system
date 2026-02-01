@@ -1,50 +1,84 @@
 import api from './api.js';
 
 const questionService = {
+  // ============ CRUD ============
+
   getAllQuestions: async (params = {}) => {
-    return await api.get('/admin/questions', { params });
+    return await api.get('/questions', { params });
   },
 
   getQuestion: async (id) => {
-    return await api.get(`/admin/questions/${id}`);
+    return await api.get(`/questions/${id}`);
   },
 
   createQuestion: async (questionData) => {
-    return await api.post('/admin/questions', questionData);
+    return await api.post('/questions', questionData);
   },
 
   updateQuestion: async (id, questionData) => {
-    return await api.put(`/admin/questions/${id}`, questionData);
+    return await api.put(`/questions/${id}`, questionData);
   },
 
   deleteQuestion: async (id) => {
-    return await api.delete(`/admin/questions/${id}`);
+    return await api.delete(`/questions/${id}`);
+  },
+
+  // ============ MODULES & CATEGORIES ============
+
+  getModulesAndCategories: async () => {
+    return await api.get('/questions/modules');
+  },
+
+  // ============ IMPORT/EXPORT ============
+
+  downloadTemplate: async () => {
+    return await api.get('/questions/template', {
+      responseType: 'blob'
+    });
   },
 
   importQuestions: async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return await api.post('/admin/questions/import', formData, {
+    return await api.post('/questions/import', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
     });
   },
 
-  getQuestionsBySubject: async (subject) => {
-    return await api.get(`/admin/questions/subject/${subject}`);
+  // ============ APPROVAL WORKFLOW ============
+
+  getPendingQuestions: async () => {
+    return await api.get('/questions/pending');
   },
 
-  getSubjects: async () => {
-    return await api.get('/admin/subjects');
+  approveQuestion: async (id, comment = '') => {
+    return await api.post(`/questions/${id}/approve`, { comment });
   },
 
-  bulkDelete: async (questionIds) => {
-    return await api.post('/admin/questions/bulk-delete', { questionIds });
+  rejectQuestion: async (id, reason) => {
+    return await api.post(`/questions/${id}/reject`, { reason });
   },
+
+  bulkApprove: async (questionIds, comment = '') => {
+    return await api.post('/questions/bulk-approve', { questionIds, comment });
+  },
+
+  bulkReject: async (questionIds, reason) => {
+    return await api.post('/questions/bulk-reject', { questionIds, reason });
+  },
+
+  // ============ HISTORY ============
+
+  getQuestionHistory: async (id) => {
+    return await api.get(`/questions/${id}/history`);
+  },
+
+  // ============ STATISTICS ============
 
   getQuestionStats: async () => {
-    return await api.get('/admin/questions/stats');
+    return await api.get('/questions/stats');
   }
 };
 

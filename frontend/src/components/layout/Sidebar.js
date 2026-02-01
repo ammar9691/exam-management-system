@@ -22,7 +22,8 @@ import {
   Grade,
   HelpOutline,
   Speed,
-  EmojiEvents
+  EmojiEvents,
+  Storage
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.js';
@@ -35,6 +36,7 @@ const Sidebar = ({ open }) => {
   const adminMenuItems = [
     { text: 'Control Center', icon: <Speed />, path: '/admin/dashboard' },
     { text: 'Users', icon: <People />, path: '/admin/users' },
+    { text: 'Question Bank', icon: <Storage />, path: '/qdb/questions' },
     { text: 'Exams', icon: <Assignment />, path: '/admin/exams' },
     { text: 'Results', icon: <Assessment />, path: '/admin/results' },
   ];
@@ -47,6 +49,7 @@ const Sidebar = ({ open }) => {
 
   const instructorMenuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/instructor/dashboard' },
+    { text: 'Question Bank', icon: <Storage />, path: '/qdb/questions' },
     { text: 'Exams', icon: <Assignment />, path: '/instructor/exams' },
     { text: 'Grading', icon: <Grade />, path: '/instructor/grading' },
     { text: 'Students', icon: <School />, path: '/instructor/students' },
@@ -54,6 +57,7 @@ const Sidebar = ({ open }) => {
 
   const examManagerMenuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/exam-manager/dashboard' },
+    { text: 'Question Bank', icon: <Storage />, path: '/qdb/questions' },
   ];
 
   const getMenuItems = () => {

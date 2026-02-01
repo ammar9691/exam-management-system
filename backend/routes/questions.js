@@ -1,127 +1,119 @@
 /**
- * Question Routes
+ * Question Routes - QDB (Question Database)
  */
 
 import express from 'express';
 import questionController from '../controllers/questionController.js';
-import { questionValidations, commonValidations, paginationValidation } from '../utils/validation.js';
-import { authenticate, authorize, hasPermission, checkResourceAccess } from '../middleware/auth.js';
-import { questionMediaUpload, excelUpload, handleUploadError } from '../utils/upload.js';
+import { authenticate, authorize } from '../middleware/auth.js';
+import { excelUpload, handleUploadError } from '../utils/upload.js';
 
 const router = express.Router();
 
+// All routes require authentication
 router.use(authenticate);
 
-// GET /api/questions
-router.get('/', 
-  authorize('admin', 'instructor'), 
-  paginationValidation,
-  questionController.getAllQuestions
+// ============ PUBLIC ROUTES (for authenticated users) ============
+
+// GET /api/questions/modules - Get all modules and categories
+router.get('/modules',
+  questionController.getModulesAndCategories
 );
 
-// GET /api/questions/stats
-router.get('/stats', 
-  authorize('admin', 'instructor'), 
-  questionController.getQuestionStats
+// ============ TEMPLATE & IMPORT ============
+
+// GET /api/questions/template - Download Excel template
+router.get('/template',
+  authorize('admin', 'exam_manager', 'instructor'),
+  questionController.downloadTemplate
 );
 
-// GET /api/questions/random
-router.get('/random', questionController.getRandomQuestions);
-
-// GET /api/questions/export
-router.get('/export', 
-  authorize('admin', 'instructor'), 
-  questionController.exportQuestions
-);
-
-// POST /api/questions/import
-router.post('/import', 
-  authorize('admin', 'instructor'),
+// POST /api/questions/import - Import questions from Excel
+router.post('/import',
+  authorize('admin', 'exam_manager', 'instructor'),
   excelUpload.single('file'),
   handleUploadError,
   questionController.importQuestions
 );
 
-// POST /api/questions/bulk
-router.post('/bulk', 
-  authorize('admin', 'instructor'),
-  questionController.bulkCreateQuestions
+// ============ APPROVAL WORKFLOW ============
+
+// GET /api/questions/pending - Get pending questions (approval queue)
+router.get('/pending',
+  authorize('admin', 'exam_manager'),
+  questionController.getPendingQuestions
 );
 
-// PUT /api/questions/bulk
-router.put('/bulk', 
-  authorize('admin', 'instructor'),
-  questionController.bulkUpdateQuestions
+// POST /api/questions/bulk-approve - Bulk approve questions
+router.post('/bulk-approve',
+  authorize('admin', 'exam_manager'),
+  questionController.bulkApprove
 );
 
-// GET /api/questions/subject/:subject
-router.get('/subject/:subject', 
-  paginationValidation,
-  questionController.getQuestionsBySubject
+// POST /api/questions/bulk-reject - Bulk reject questions
+router.post('/bulk-reject',
+  authorize('admin', 'exam_manager'),
+  questionController.bulkReject
 );
 
-// GET /api/questions/subject/:subject/:topic
-router.get('/subject/:subject/:topic', 
-  paginationValidation,
-  questionController.getQuestionsByTopic
+// ============ STATISTICS ============
+
+// GET /api/questions/stats - Get QDB statistics
+router.get('/stats',
+  authorize('admin', 'exam_manager', 'instructor'),
+  questionController.getQDBStats
 );
 
-// GET /api/questions/difficulty/:difficulty
-router.get('/difficulty/:difficulty', 
-  paginationValidation,
-  questionController.getQuestionsByDifficulty
+// ============ CRUD OPERATIONS ============
+
+// GET /api/questions - Get all questions (with filters)
+router.get('/',
+  authorize('admin', 'exam_manager', 'instructor'),
+  questionController.getAllQuestions
 );
 
-// POST /api/questions
-router.post('/', 
-  authorize('admin', 'instructor'),
-  questionMediaUpload.array('media', 3),
-  handleUploadError,
-  questionValidations.create,
+// POST /api/questions - Create a new question
+router.post('/',
+  authorize('admin', 'exam_manager', 'instructor'),
   questionController.createQuestion
 );
 
-// GET /api/questions/:id
-router.get('/:id', 
-  commonValidations.objectId('id'),
+// GET /api/questions/:id - Get question by ID
+router.get('/:id',
+  authorize('admin', 'exam_manager', 'instructor'),
   questionController.getQuestionById
 );
 
-// PUT /api/questions/:id
-router.put('/:id', 
-  authorize('admin', 'instructor'),
-  questionMediaUpload.array('media', 3),
-  handleUploadError,
-  questionValidations.update,
+// PUT /api/questions/:id - Update question
+router.put('/:id',
+  authorize('admin', 'exam_manager', 'instructor'),
   questionController.updateQuestion
 );
 
-// DELETE /api/questions/:id
-router.delete('/:id', 
-  authorize('admin', 'instructor'),
+// DELETE /api/questions/:id - Delete (archive) question
+router.delete('/:id',
+  authorize('admin', 'exam_manager', 'instructor'),
   questionController.deleteQuestion
 );
 
-// POST /api/questions/:id/restore
-router.post('/:id/restore', 
-  authorize('admin'),
-  questionController.restoreQuestion
+// ============ APPROVAL ACTIONS ============
+
+// POST /api/questions/:id/approve - Approve a question
+router.post('/:id/approve',
+  authorize('admin', 'exam_manager'),
+  questionController.approveQuestion
 );
 
-// PATCH /api/questions/:id/status
-router.patch('/:id/status', 
-  authorize('admin', 'instructor'),
-  questionController.updateQuestionStatus
+// POST /api/questions/:id/reject - Reject a question
+router.post('/:id/reject',
+  authorize('admin', 'exam_manager'),
+  questionController.rejectQuestion
 );
 
-// POST /api/questions/:id/validate
-router.post('/:id/validate', 
-  questionController.validateAnswer
-);
+// ============ HISTORY ============
 
-// GET /api/questions/:id/history
-router.get('/:id/history', 
-  authorize('admin', 'instructor'),
+// GET /api/questions/:id/history - Get question revision history
+router.get('/:id/history',
+  authorize('admin', 'exam_manager'),
   questionController.getQuestionHistory
 );
 

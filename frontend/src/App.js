@@ -40,6 +40,9 @@ import ExamMonitor from './pages/instructor/ExamMonitor';
 // Exam Manager Pages
 import ExamManagerDashboard from './pages/examManager/Dashboard';
 
+// QDB (Question Database) Pages
+import QDBQuestions from './pages/qdb/Questions';
+
 // Common Pages
 import NotFound from './pages/NotFound';
 import Unauthorized from './pages/Unauthorized';
@@ -172,6 +175,16 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['exam_manager']}>
                   <ExamManagerDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* QDB (Question Database) Routes */}
+            <Route
+              path="/qdb/questions"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'exam_manager', 'instructor']}>
+                  <QDBQuestions />
                 </ProtectedRoute>
               }
             />
