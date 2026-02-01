@@ -21,7 +21,6 @@ import Register from './pages/auth/Register';
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
-import AdminQuestions from './pages/admin/Questions';
 import AdminExams from './pages/admin/Exams';
 import AdminResults from './pages/admin/Results';
 
@@ -37,7 +36,9 @@ import InstructorExams from './pages/instructor/Exams';
 import InstructorStudents from './pages/instructor/Students';
 import InstructorGrading from './pages/instructor/Grading';
 import ExamMonitor from './pages/instructor/ExamMonitor';
-import InstructorQuestions from './pages/instructor/Questions';
+
+// Exam Manager Pages
+import ExamManagerDashboard from './pages/examManager/Dashboard';
 
 // Common Pages
 import NotFound from './pages/NotFound';
@@ -68,14 +69,6 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <AdminUsers />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/questions"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminQuestions />
                 </ProtectedRoute>
               }
             />
@@ -148,14 +141,6 @@ function App() {
               }
             />
             <Route
-              path="/instructor/questions"
-              element={
-                <ProtectedRoute allowedRoles={['instructor']}>
-                  <InstructorQuestions />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/instructor/students"
               element={
                 <ProtectedRoute allowedRoles={['instructor']}>
@@ -180,7 +165,17 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
+
+            {/* Exam Manager Routes */}
+            <Route
+              path="/exam-manager/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['exam_manager']}>
+                  <ExamManagerDashboard />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Default Routes */}
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/unauthorized" element={<Unauthorized />} />

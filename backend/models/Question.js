@@ -179,8 +179,8 @@ const questionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'active', 'archived', 'disabled'],
-    default: 'active'
+    enum: ['draft', 'pending', 'approved', 'rejected', 'active', 'archived', 'disabled'],
+    default: 'approved'  // Auto-approve for now
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -198,6 +198,28 @@ const questionSchema = new mongoose.Schema({
   parentQuestion: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Question' // For versioning and history
+  },
+  approval: {
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'approved'  // Auto-approve for now
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    reviewedAt: {
+      type: Date,
+      default: null
+    },
+    reviewComment: {
+      type: String,
+      trim: true,
+      maxLength: [1000, 'Review comment cannot exceed 1000 characters'],
+      default: null
+    }
   }
 }, {
   timestamps: true,

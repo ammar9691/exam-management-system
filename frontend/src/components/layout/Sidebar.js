@@ -35,7 +35,6 @@ const Sidebar = ({ open }) => {
   const adminMenuItems = [
     { text: 'Control Center', icon: <Speed />, path: '/admin/dashboard' },
     { text: 'Users', icon: <People />, path: '/admin/users' },
-    { text: 'Question Bank', icon: <Quiz />, path: '/admin/questions' },
     { text: 'Exams', icon: <Assignment />, path: '/admin/exams' },
     { text: 'Results', icon: <Assessment />, path: '/admin/results' },
   ];
@@ -49,9 +48,12 @@ const Sidebar = ({ open }) => {
   const instructorMenuItems = [
     { text: 'Dashboard', icon: <Dashboard />, path: '/instructor/dashboard' },
     { text: 'Exams', icon: <Assignment />, path: '/instructor/exams' },
-    { text: 'Questions', icon: <Quiz />, path: '/instructor/questions' },
     { text: 'Grading', icon: <Grade />, path: '/instructor/grading' },
     { text: 'Students', icon: <School />, path: '/instructor/students' },
+  ];
+
+  const examManagerMenuItems = [
+    { text: 'Dashboard', icon: <Dashboard />, path: '/exam-manager/dashboard' },
   ];
 
   const getMenuItems = () => {
@@ -62,6 +64,8 @@ const Sidebar = ({ open }) => {
         return studentMenuItems;
       case 'instructor':
         return instructorMenuItems;
+      case 'exam_manager':
+        return examManagerMenuItems;
       default:
         return [];
     }
@@ -75,6 +79,8 @@ const Sidebar = ({ open }) => {
         return '#10B981';
       case 'student':
         return '#3E92CC';
+      case 'exam_manager':
+        return '#8B5CF6'; // Purple for exam manager
       default:
         return '#6C757D';
     }
@@ -88,6 +94,8 @@ const Sidebar = ({ open }) => {
         return 'Instructor';
       case 'student':
         return 'Pilot Student';
+      case 'exam_manager':
+        return 'Exam Manager';
       default:
         return role;
     }

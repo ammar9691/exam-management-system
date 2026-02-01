@@ -13,6 +13,7 @@ import resultRoutes from './results.js';
 import adminRoutes from './adminRoutes.js';
 import studentRoutes from './studentRoutes.js';
 import instructorRoutes from './instructorRoutes.js';
+import examManagerRoutes from './examManagerRoutes.js';
 import { serveUploadedFile } from '../utils/upload.js';
 
 const router = express.Router();
@@ -35,13 +36,14 @@ router.get('/', (req, res) => {
     description: 'RESTful API for exam management system',
     endpoints: {
       auth: '/api/auth',
-      users: '/api/users', 
+      users: '/api/users',
       questions: '/api/questions',
       exams: '/api/exams',
       subjects: '/api/subjects',
       results: '/api/results',
       admin: '/api/admin',
       instructor: '/api/instructor',
+      examManager: '/api/exam-manager',
       uploads: '/uploads'
     },
     documentation: '/api/docs' // TODO: Add API documentation
@@ -58,6 +60,7 @@ router.use('/results', resultRoutes);
 router.use('/admin', adminRoutes);
 router.use('/student', studentRoutes);
 router.use('/instructor', instructorRoutes);
+router.use('/exam-manager', examManagerRoutes);
 
 // Serve uploaded files
 router.get('/uploads/*', serveUploadedFile);

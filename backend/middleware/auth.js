@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import config from '../config.js';
 import { sendErrorResponse } from '../utils/response.js';
+import { hasPermission as checkPerm } from '../config/permissions.js';
 
 // Verify JWT token and authenticate user
 export const authenticate = async (req, res, next) => {
@@ -84,6 +85,12 @@ export const instructorOrAdmin = authorize('instructor', 'admin');
 
 // Student only middleware
 export const studentOnly = authorize('student');
+
+// Exam Manager middleware
+export const examManagerOnly = authorize('exam_manager');
+
+// Exam Manager or Admin middleware
+export const examManagerOrAdmin = authorize('exam_manager', 'admin');
 
 // Check if user can access specific resource
 export const checkResourceAccess = (resourceType) => {
@@ -215,38 +222,26 @@ export const rateLimitByUser = (maxRequests = 100, windowMs = 15 * 60 * 1000) =>
 export const hasPermission = (permission) => {
   return (req, res, next) => {
     const { user } = req;
-    
     if (!user) {
       return sendErrorResponse(res, 'Authentication required.', 401);
     }
-
-    // Admin has all permissions
-    if (user.role === 'admin') {
-      return next();
-    }
-
-    // Check role-specific permissions
-    const permissions = {
-      instructor: [
-        'view_exams',
-        'grade_exams',
-        'view_results',
-        'create_questions',
-        'view_students'
-      ],
-      student: [
-        'take_exams',
-        'view_own_results',
-        'view_exam_schedule'
-      ]
-    };
-
-    const userPermissions = permissions[user.role] || [];
-    
-    if (!userPermissions.includes(permission)) {
+    if (!checkPerm(user.role, permission)) {
       return sendErrorResponse(res, `Insufficient permissions. Required: ${permission}`, 403);
     }
+    next();
+  };
+};
 
+// Permission-based authorization (can check multiple permissions)
+export const authorizePermission = (...requiredPermissions) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return sendErrorResponse(res, 'Authentication required.', 401);
+    }
+    const hasRequired = requiredPermissions.some(p => checkPerm(req.user.role, p));
+    if (!hasRequired) {
+      return sendErrorResponse(res, 'Insufficient permissions.', 403);
+    }
     next();
   };
 };
@@ -295,9 +290,12 @@ export default {
   adminOnly,
   instructorOrAdmin,
   studentOnly,
+  examManagerOnly,
+  examManagerOrAdmin,
   checkResourceAccess,
   optionalAuth,
   rateLimitByUser,
   hasPermission,
+  authorizePermission,
   ensureOwnership
 };

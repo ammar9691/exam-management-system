@@ -5,8 +5,19 @@ export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/a
 // User roles
 export const USER_ROLES = {
   ADMIN: 'admin',
-  INSTRUCTOR: 'instructor', 
-  STUDENT: 'student'
+  INSTRUCTOR: 'instructor',
+  STUDENT: 'student',
+  EXAM_MANAGER: 'exam_manager'
+};
+
+// Question status (for future use)
+export const QUESTION_STATUS = {
+  DRAFT: 'draft',
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  ACTIVE: 'active',
+  ARCHIVED: 'archived'
 };
 
 // Exam status
@@ -46,7 +57,10 @@ export const ROUTES = {
   
   // Instructor routes
   INSTRUCTOR_DASHBOARD: '/instructor/dashboard',
-  INSTRUCTOR_GRADING: '/instructor/grading'
+  INSTRUCTOR_GRADING: '/instructor/grading',
+
+  // Exam Manager routes
+  EXAM_MANAGER_DASHBOARD: '/exam-manager/dashboard'
 };
 
 // Local storage keys
