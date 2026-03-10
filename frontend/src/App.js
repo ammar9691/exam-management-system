@@ -36,6 +36,12 @@ import InstructorExams from './pages/instructor/Exams';
 import InstructorStudents from './pages/instructor/Students';
 import InstructorGrading from './pages/instructor/Grading';
 import ExamMonitor from './pages/instructor/ExamMonitor';
+import ModuleExams from './pages/instructor/ModuleExams';
+import ConsolidatedResults from './pages/instructor/ConsolidatedResults';
+
+// Module Exam Pages (Student)
+import ModuleExamRunner from './pages/student/ModuleExamRunner';
+import ModuleExamResult from './pages/student/ModuleExamResult';
 
 // Exam Manager Pages
 import ExamManagerDashboard from './pages/examManager/Dashboard';
@@ -91,7 +97,24 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
+            {/* Module-Based Exams (Admin) */}
+            <Route
+              path="/admin/module-exams"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <ModuleExams />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/module-exams/:examId/results"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <ConsolidatedResults />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Student Routes */}
             <Route
               path="/student/dashboard"
@@ -125,7 +148,24 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
+            {/* Module Exam Routes (Student) */}
+            <Route
+              path="/student/module-exam/:examId"
+              element={
+                <ProtectedRoute allowedRoles={['student']}>
+                  <ModuleExamRunner />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/student/module-exam/result/:attemptId"
+              element={
+                <ProtectedRoute allowedRoles={['student']}>
+                  <ModuleExamResult />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Instructor Routes */}
             <Route
               path="/instructor/dashboard"
@@ -165,6 +205,23 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['instructor']}>
                   <ExamMonitor />
+                </ProtectedRoute>
+              }
+            />
+            {/* Module-Based Exams (Instructor) */}
+            <Route
+              path="/instructor/module-exams"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <ModuleExams />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/module-exams/:examId/results"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <ConsolidatedResults />
                 </ProtectedRoute>
               }
             />

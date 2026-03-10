@@ -1,5 +1,11 @@
 import mongoose from 'mongoose';
 import config from '../config.js';
+import {
+  MODULE_BLUEPRINTS,
+  EXAM_TYPES,
+  getTotalMcqCount,
+  getTotalTimeMinutes
+} from '../config/moduleBlueprints.js';
 
 const questionWeightageSchema = new mongoose.Schema({
   subject: {
@@ -58,6 +64,99 @@ const examSchema = new mongoose.Schema({
     enum: ['practice', 'assignment', 'midterm', 'mock', 'final', 'quiz'],
     default: 'quiz'
   },
+
+  // ============ MODULE-DRIVEN EXAM FIELDS ============
+  // Module ID from blueprint (e.g., 'MODULE_1')
+  moduleId: {
+    type: String,
+    validate: {
+      validator: function(value) {
+        if (!value) return true; // Optional for legacy exams
+        return value in MODULE_BLUEPRINTS;
+      },
+      message: props => `"${props.value}" is not a valid module`
+    },
+    index: true
+  },
+  // Module display name
+  moduleName: {
+    type: String,
+    trim: true
+  },
+  // Exam type for module-driven exams
+  examType: {
+    type: String,
+    enum: Object.values(EXAM_TYPES).concat([null]),
+    default: null,
+    index: true
+  },
+  // Canonical question IDs (baseline paper before shuffling)
+  paperQuestionIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Question'
+  }],
+  // Total questions from blueprint
+  blueprintTotalQuestions: {
+    type: Number,
+    default: 0
+  },
+  // Total time from blueprint (in minutes)
+  blueprintTotalTimeMinutes: {
+    type: Number,
+    default: 0
+  },
+  // Category breakdown (from blueprint)
+  categoryBreakdown: [{
+    category: String,
+    mcqCount: Number,
+    essayCount: Number,
+    timeAllowedMinutes: Number
+  }],
+  // Exam sequence number (per module+examType scope for cooldown tracking)
+  examSequence: {
+    type: Number,
+    default: 0,
+    index: true
+  },
+  // Assigned candidates (students who can take this exam)
+  assignedCandidateIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  // Module-driven exam status
+  examStatus: {
+    type: String,
+    enum: ['scheduled', 'active', 'ended', 'archived', null],
+    default: null,
+    index: true
+  },
+  // Exam start and end times (for late login restriction)
+  startAt: {
+    type: Date,
+    index: true
+  },
+  endAt: {
+    type: Date,
+    index: true
+  },
+  // Flag to indicate this is a module-driven exam
+  isModuleDriven: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  // Rest/rotation tracking
+  questionsRested: {
+    type: Boolean,
+    default: false
+    // Set to true after 5% rotation is applied post-exam
+  },
+  restedQuestionIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Question'
+  }],
+  // ============ END MODULE-DRIVEN EXAM FIELDS ============
+
   duration: {
     type: Number,
     required: [true, 'Duration is required'],
@@ -271,6 +370,12 @@ examSchema.index({ subject: 1 });
 examSchema.index({ createdBy: 1 });
 examSchema.index({ createdAt: -1 });
 examSchema.index({ title: 'text', description: 'text', subject: 'text' });
+// Module-driven exam indexes
+examSchema.index({ moduleId: 1, examType: 1 });
+examSchema.index({ moduleId: 1, examType: 1, examSequence: 1 });
+examSchema.index({ isModuleDriven: 1, examStatus: 1 });
+examSchema.index({ assignedCandidateIds: 1 });
+examSchema.index({ startAt: 1, endAt: 1 });
 
 // Virtuals
 examSchema.virtual('isActive').get(function() {
@@ -452,8 +557,160 @@ examSchema.statics.getStatistics = function(filters = {}) {
       }
     }
   ];
-  
+
   return this.aggregate(pipeline);
+};
+
+// ============ MODULE-DRIVEN EXAM METHODS ============
+
+/**
+ * Get the next exam sequence number for a module+examType combination
+ */
+examSchema.statics.getNextExamSequence = async function(moduleId, examType) {
+  const lastExam = await this.findOne({
+    moduleId,
+    examType,
+    isModuleDriven: true
+  }).sort({ examSequence: -1 }).select('examSequence');
+
+  return lastExam ? lastExam.examSequence + 1 : 1;
+};
+
+/**
+ * Find module-driven exams by status
+ */
+examSchema.statics.findModuleDrivenByStatus = function(examStatus, additionalFilters = {}) {
+  return this.find({
+    isModuleDriven: true,
+    examStatus,
+    ...additionalFilters
+  }).sort({ createdAt: -1 });
+};
+
+/**
+ * Find active module-driven exams for a candidate
+ */
+examSchema.statics.findActiveForCandidate = function(candidateId) {
+  const now = new Date();
+  return this.find({
+    isModuleDriven: true,
+    examStatus: 'active',
+    assignedCandidateIds: candidateId,
+    startAt: { $lte: now },
+    endAt: { $gte: now }
+  }).sort({ startAt: 1 });
+};
+
+/**
+ * Find scheduled module-driven exams for a candidate
+ */
+examSchema.statics.findScheduledForCandidate = function(candidateId) {
+  const now = new Date();
+  return this.find({
+    isModuleDriven: true,
+    examStatus: 'scheduled',
+    assignedCandidateIds: candidateId,
+    startAt: { $gt: now }
+  }).sort({ startAt: 1 });
+};
+
+/**
+ * Check if exam is currently within valid time window
+ */
+examSchema.methods.isWithinTimeWindow = function() {
+  if (!this.startAt || !this.endAt) return false;
+  const now = new Date();
+  return now >= this.startAt && now <= this.endAt;
+};
+
+/**
+ * Check if exam has ended
+ */
+examSchema.methods.hasEnded = function() {
+  if (!this.endAt) return false;
+  return new Date() > this.endAt;
+};
+
+/**
+ * Check if candidate is assigned to this exam
+ */
+examSchema.methods.isCandidateAssigned = function(candidateId) {
+  return this.assignedCandidateIds.some(
+    id => id.toString() === candidateId.toString()
+  );
+};
+
+/**
+ * Start the exam (transition from scheduled to active)
+ */
+examSchema.methods.activate = function() {
+  if (this.examStatus === 'scheduled') {
+    this.examStatus = 'active';
+  }
+  return this.save();
+};
+
+/**
+ * End the exam (transition from active to ended)
+ */
+examSchema.methods.end = function() {
+  if (this.examStatus === 'active') {
+    this.examStatus = 'ended';
+  }
+  return this.save();
+};
+
+/**
+ * Archive the exam
+ */
+examSchema.methods.archive = function() {
+  this.examStatus = 'archived';
+  return this.save();
+};
+
+/**
+ * Get all assigned candidates count
+ */
+examSchema.methods.getAssignedCount = function() {
+  return this.assignedCandidateIds.length;
+};
+
+/**
+ * Find all module-driven exams needing status update (scheduled -> active or active -> ended)
+ */
+examSchema.statics.updateExamStatuses = async function() {
+  const now = new Date();
+
+  // Scheduled -> Active (if start time has passed)
+  await this.updateMany(
+    {
+      isModuleDriven: true,
+      examStatus: 'scheduled',
+      startAt: { $lte: now }
+    },
+    { $set: { examStatus: 'active' } }
+  );
+
+  // Active -> Ended (if end time has passed)
+  await this.updateMany(
+    {
+      isModuleDriven: true,
+      examStatus: 'active',
+      endAt: { $lt: now }
+    },
+    { $set: { examStatus: 'ended' } }
+  );
+};
+
+/**
+ * Get exams pending question rest/rotation
+ */
+examSchema.statics.findPendingRest = function() {
+  return this.find({
+    isModuleDriven: true,
+    examStatus: 'ended',
+    questionsRested: false
+  });
 };
 
 export default mongoose.model('Exam', examSchema);

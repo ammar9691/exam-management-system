@@ -38,6 +38,7 @@ const Sidebar = ({ open }) => {
     { text: 'Users', icon: <People />, path: '/admin/users' },
     { text: 'Question Bank', icon: <Storage />, path: '/qdb/questions' },
     { text: 'Exams', icon: <Assignment />, path: '/admin/exams' },
+    { text: 'Module Exams', icon: <Quiz />, path: '/admin/module-exams' },
     { text: 'Results', icon: <Assessment />, path: '/admin/results' },
   ];
 
@@ -51,6 +52,7 @@ const Sidebar = ({ open }) => {
     { text: 'Dashboard', icon: <Dashboard />, path: '/instructor/dashboard' },
     { text: 'Question Bank', icon: <Storage />, path: '/qdb/questions' },
     { text: 'Exams', icon: <Assignment />, path: '/instructor/exams' },
+    { text: 'Module Exams', icon: <Quiz />, path: '/instructor/module-exams' },
     { text: 'Grading', icon: <Grade />, path: '/instructor/grading' },
     { text: 'Students', icon: <School />, path: '/instructor/students' },
   ];

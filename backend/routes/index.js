@@ -14,6 +14,7 @@ import adminRoutes from './adminRoutes.js';
 import studentRoutes from './studentRoutes.js';
 import instructorRoutes from './instructorRoutes.js';
 import examManagerRoutes from './examManagerRoutes.js';
+import moduleExamRoutes from './moduleExamRoutes.js';
 import { serveUploadedFile } from '../utils/upload.js';
 
 const router = express.Router();
@@ -39,6 +40,7 @@ router.get('/', (req, res) => {
       users: '/api/users',
       questions: '/api/questions',
       exams: '/api/exams',
+      moduleExams: '/api/module-exams',
       subjects: '/api/subjects',
       results: '/api/results',
       admin: '/api/admin',
@@ -61,6 +63,7 @@ router.use('/admin', adminRoutes);
 router.use('/student', studentRoutes);
 router.use('/instructor', instructorRoutes);
 router.use('/exam-manager', examManagerRoutes);
+router.use('/module-exams', moduleExamRoutes);
 
 // Serve uploaded files
 router.get('/uploads/*', serveUploadedFile);

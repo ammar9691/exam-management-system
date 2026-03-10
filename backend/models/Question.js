@@ -45,7 +45,7 @@ const revisionSchema = new mongoose.Schema({
   },
   changeType: {
     type: String,
-    enum: ['create', 'edit', 'approve', 'reject', 'import'],
+    enum: ['create', 'edit', 'approve', 'reject', 'import', 'use', 'rest', 'unrest'],
     required: true
   },
   changes: {
@@ -255,6 +255,53 @@ const questionSchema = new mongoose.Schema({
     }
   },
 
+  // ============ RESTING/WITHDRAWAL FIELDS ============
+  // 5% of questions are rested after each exam
+  isRested: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  restedUntil: {
+    type: Date,
+    default: null
+    // If set, question is rested until this date
+  },
+  restedAt: {
+    type: Date,
+    default: null
+  },
+  restReason: {
+    type: String,
+    trim: true,
+    maxLength: [500, 'Rest reason cannot exceed 500 characters']
+    // e.g., "Auto-rested after exam X (5% rotation)"
+  },
+
+  // ============ EXAM USAGE TRACKING (for cooldown) ============
+  // Questions cannot reappear for 3 subsequent exams
+  lastUsedAt: {
+    type: Date,
+    default: null,
+    index: true
+  },
+  lastUsedInExamId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Exam',
+    default: null
+  },
+  lastUsedExamType: {
+    type: String,
+    enum: ['basic', 'type', null],
+    default: null
+  },
+  lastUsedExamSequence: {
+    type: Number,
+    default: 0,
+    index: true
+    // Exam sequence number within module+examType scope
+  },
+
   // ============ LAST MODIFIED ============
   lastModifiedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -274,6 +321,17 @@ questionSchema.index({ module: 1, category: 1, knowledgeLevel: 1 });
 questionSchema.index({ status: 1, module: 1 });
 questionSchema.index({ createdBy: 1 });
 questionSchema.index({ createdAt: -1 });
+// Indexes for resting/cooldown
+questionSchema.index({ isRested: 1, module: 1 });
+questionSchema.index({ lastUsedExamSequence: 1, module: 1, lastUsedExamType: 1 });
+// Compound index for eligible questions query
+questionSchema.index({
+  status: 1,
+  module: 1,
+  category: 1,
+  isRested: 1,
+  lastUsedExamSequence: 1
+});
 
 // Text search index
 questionSchema.index({
@@ -404,6 +462,84 @@ questionSchema.methods.reject = function(reviewerId, reviewerName, reason) {
   }, reason);
 };
 
+/**
+ * Mark question as used in an exam
+ */
+questionSchema.methods.markAsUsed = function(examId, examType, examSequence, userId, userName) {
+  this.lastUsedAt = new Date();
+  this.lastUsedInExamId = examId;
+  this.lastUsedExamType = examType;
+  this.lastUsedExamSequence = examSequence;
+  this.analytics.timesUsed += 1;
+
+  this.addRevision(userId, userName, 'use', {
+    lastUsedInExamId: { from: null, to: examId },
+    lastUsedExamSequence: { from: this.lastUsedExamSequence - 1, to: examSequence }
+  }, `Used in ${examType} exam (sequence: ${examSequence})`);
+};
+
+/**
+ * Rest/withdraw a question from use
+ */
+questionSchema.methods.rest = function(userId, userName, reason, restDays = 30) {
+  const wasRested = this.isRested;
+  this.isRested = true;
+  this.restedAt = new Date();
+  this.restedUntil = new Date(Date.now() + restDays * 24 * 60 * 60 * 1000);
+  this.restReason = reason;
+
+  this.addRevision(userId, userName, 'rest', {
+    isRested: { from: wasRested, to: true },
+    restedAt: { from: null, to: this.restedAt },
+    restedUntil: { from: null, to: this.restedUntil }
+  }, reason);
+};
+
+/**
+ * Unrest/reactivate a question
+ */
+questionSchema.methods.unrest = function(userId, userName, reason = 'Manually unrested') {
+  const wasRested = this.isRested;
+  this.isRested = false;
+  this.restedUntil = null;
+
+  this.addRevision(userId, userName, 'unrest', {
+    isRested: { from: wasRested, to: false },
+    restedUntil: { from: this.restedUntil, to: null }
+  }, reason);
+};
+
+/**
+ * Check if question is eligible for use in exam
+ * @param {string} examType - 'basic' or 'type'
+ * @param {number} currentSequence - Current exam sequence for cooldown check
+ * @param {number} cooldownExams - Number of exams to wait (default 3)
+ */
+questionSchema.methods.isEligibleForExam = function(examType, currentSequence, cooldownExams = 3) {
+  // Must be approved
+  if (this.status !== 'approved') return false;
+
+  // Must not be rested
+  if (this.isRested) {
+    // Check if rest period has expired
+    if (this.restedUntil && new Date() >= this.restedUntil) {
+      // Rest period expired - should be unrested
+      return true;
+    }
+    return false;
+  }
+
+  // Check cooldown: if used in this exam type, must wait 3 exams
+  if (this.lastUsedExamType === examType && this.lastUsedExamSequence > 0) {
+    const examsSinceLastUse = currentSequence - this.lastUsedExamSequence;
+    if (examsSinceLastUse < cooldownExams) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 // ============ STATIC METHODS ============
 
 /**
@@ -522,6 +658,200 @@ questionSchema.statics.getQDBStats = async function() {
     level2: 0,
     level3: 0
   };
+};
+
+/**
+ * Find eligible questions for exam generation
+ * Filters: approved, not rested, not in cooldown
+ * @param {string} module - Module ID
+ * @param {string} category - Category name
+ * @param {string} examType - 'basic' or 'type'
+ * @param {number} currentSequence - Current exam sequence
+ * @param {number} cooldownExams - Number of exams for cooldown (default 3)
+ */
+questionSchema.statics.findEligibleForExam = async function(module, category, examType, currentSequence, cooldownExams = 3) {
+  const minSequence = currentSequence - cooldownExams;
+  const now = new Date();
+
+  return this.find({
+    status: 'approved',
+    module,
+    category,
+    $or: [
+      { isRested: false },
+      { isRested: true, restedUntil: { $lte: now } } // Rest period expired
+    ],
+    $or: [
+      { lastUsedExamType: { $ne: examType } }, // Different exam type
+      { lastUsedExamSequence: { $lte: minSequence } }, // Past cooldown
+      { lastUsedExamSequence: { $exists: false } }, // Never used
+      { lastUsedExamSequence: 0 } // Never used (explicit)
+    ]
+  });
+};
+
+/**
+ * Count eligible questions for QDB sufficiency check
+ * @param {string} module - Module ID
+ * @param {string} examType - 'basic' or 'type'
+ * @param {number} currentSequence - Current exam sequence
+ * @param {number} cooldownExams - Number of exams for cooldown (default 3)
+ */
+questionSchema.statics.countEligibleByCategory = async function(module, examType, currentSequence, cooldownExams = 3) {
+  const minSequence = currentSequence - cooldownExams;
+  const now = new Date();
+
+  const results = await this.aggregate([
+    {
+      $match: {
+        status: 'approved',
+        module,
+        $or: [
+          { isRested: false },
+          { isRested: true, restedUntil: { $lte: now } }
+        ]
+      }
+    },
+    {
+      $match: {
+        $or: [
+          { lastUsedExamType: { $ne: examType } },
+          { lastUsedExamSequence: { $lte: minSequence } },
+          { lastUsedExamSequence: { $exists: false } },
+          { lastUsedExamSequence: 0 }
+        ]
+      }
+    },
+    {
+      $group: {
+        _id: '$category',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Convert to map: { category: count }
+  const countMap = {};
+  results.forEach(r => {
+    countMap[r._id] = r.count;
+  });
+
+  return countMap;
+};
+
+/**
+ * Get total eligible question count for a module
+ */
+questionSchema.statics.countTotalEligible = async function(module, examType, currentSequence, cooldownExams = 3) {
+  const minSequence = currentSequence - cooldownExams;
+  const now = new Date();
+
+  return this.countDocuments({
+    status: 'approved',
+    module,
+    $or: [
+      { isRested: false },
+      { isRested: true, restedUntil: { $lte: now } }
+    ],
+    $or: [
+      { lastUsedExamType: { $ne: examType } },
+      { lastUsedExamSequence: { $lte: minSequence } },
+      { lastUsedExamSequence: { $exists: false } },
+      { lastUsedExamSequence: 0 }
+    ]
+  });
+};
+
+/**
+ * Bulk update questions as used
+ */
+questionSchema.statics.bulkMarkAsUsed = async function(questionIds, examId, examType, examSequence, userId, userName) {
+  const now = new Date();
+
+  // Update all questions
+  await this.updateMany(
+    { _id: { $in: questionIds } },
+    {
+      $set: {
+        lastUsedAt: now,
+        lastUsedInExamId: examId,
+        lastUsedExamType: examType,
+        lastUsedExamSequence: examSequence
+      },
+      $inc: { 'analytics.timesUsed': 1 },
+      $push: {
+        revisions: {
+          revisedAt: now,
+          revisedBy: userId,
+          revisedByName: userName,
+          changeType: 'use',
+          changes: { lastUsedExamSequence: { from: null, to: examSequence } },
+          comment: `Used in ${examType} exam (sequence: ${examSequence})`
+        }
+      }
+    }
+  );
+};
+
+/**
+ * Bulk rest questions (for 5% rotation after exam)
+ */
+questionSchema.statics.bulkRest = async function(questionIds, userId, userName, reason, restDays = 30) {
+  const now = new Date();
+  const restedUntil = new Date(Date.now() + restDays * 24 * 60 * 60 * 1000);
+
+  await this.updateMany(
+    { _id: { $in: questionIds } },
+    {
+      $set: {
+        isRested: true,
+        restedAt: now,
+        restedUntil,
+        restReason: reason
+      },
+      $push: {
+        revisions: {
+          revisedAt: now,
+          revisedBy: userId,
+          revisedByName: userName,
+          changeType: 'rest',
+          changes: { isRested: { from: false, to: true } },
+          comment: reason
+        }
+      }
+    }
+  );
+};
+
+/**
+ * Auto-unrest questions whose rest period has expired
+ */
+questionSchema.statics.autoUnrestExpired = async function() {
+  const now = new Date();
+
+  const result = await this.updateMany(
+    {
+      isRested: true,
+      restedUntil: { $lte: now }
+    },
+    {
+      $set: {
+        isRested: false
+      },
+      $push: {
+        revisions: {
+          revisedAt: now,
+          revisedBy: null,
+          revisedByName: 'System',
+          changeType: 'unrest',
+          changes: { isRested: { from: true, to: false } },
+          comment: 'Auto-unrested: rest period expired'
+        }
+      }
+    }
+  );
+
+  return result.modifiedCount;
 };
 
 export default mongoose.model('Question', questionSchema);

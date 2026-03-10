@@ -6,14 +6,36 @@
 import Exam from '../models/Exam.js';
 import Question from '../models/Question.js';
 import Result from '../models/Result.js';
-import { 
-  sendSuccessResponse, 
-  sendErrorResponse, 
+import CandidateAttempt from '../models/CandidateAttempt.js';
+import User from '../models/User.js';
+import {
+  sendSuccessResponse,
+  sendErrorResponse,
   sendNotFoundResponse,
   sendPaginatedResponse,
   asyncHandler
 } from '../utils/response.js';
 import { getPaginatedResults } from '../utils/pagination.js';
+import {
+  MODULE_BLUEPRINTS,
+  EXAM_TYPES,
+  getModuleBlueprint,
+  getTotalMcqCount,
+  getTotalTimeMinutes,
+  getCategoryBreakdown,
+  getModulesForExam,
+  getExamTypes
+} from '../config/moduleBlueprints.js';
+import {
+  checkQDBSufficiency,
+  selectQuestionsForExam,
+  generateExamTitle,
+  calculateExamStatistics,
+  processQuestionsAfterExam
+} from '../utils/examUtils.js';
+import {
+  generateConsolidatedResultPDF
+} from '../utils/pdfGenerator.js';
 
 // Get all exams
 export const getAllExams = asyncHandler(async (req, res) => {
@@ -539,7 +561,517 @@ export const updateExamStatus = asyncHandler(async (req, res) => {
   sendSuccessResponse(res, 'Exam status updated successfully', { exam });
 });
 
+// ============ MODULE-DRIVEN EXAM FUNCTIONS ============
+
+/**
+ * Get available modules for exam creation
+ * GET /api/module-exams/modules
+ */
+export const getExamModules = asyncHandler(async (req, res) => {
+  const modules = getModulesForExam();
+  const examTypes = getExamTypes();
+
+  sendSuccessResponse(res, 'Modules and exam types retrieved successfully', {
+    modules,
+    examTypes
+  });
+});
+
+/**
+ * Check QDB sufficiency for a module and exam type
+ * POST /api/module-exams/check-sufficiency
+ */
+export const checkSufficiency = asyncHandler(async (req, res) => {
+  const { moduleId, examType } = req.body;
+
+  if (!moduleId || !examType) {
+    return sendErrorResponse(res, 'Module ID and exam type are required', 400);
+  }
+
+  if (!Object.values(EXAM_TYPES).includes(examType)) {
+    return sendErrorResponse(res, 'Invalid exam type. Must be "basic" or "type"', 400);
+  }
+
+  const sufficiency = await checkQDBSufficiency(moduleId, examType);
+
+  sendSuccessResponse(res, 'Sufficiency check completed', sufficiency);
+});
+
+/**
+ * Create a new module-driven exam
+ * POST /api/module-exams
+ * Body: { moduleId, examType, startAt, endAt }
+ */
+export const createModuleExam = asyncHandler(async (req, res) => {
+  const { moduleId, examType, startAt, endAt } = req.body;
+  const { user } = req;
+
+  // Validate inputs
+  if (!moduleId) {
+    return sendErrorResponse(res, 'Module ID is required', 400);
+  }
+
+  if (!examType || !Object.values(EXAM_TYPES).includes(examType)) {
+    return sendErrorResponse(res, 'Valid exam type (basic/type) is required', 400);
+  }
+
+  if (!startAt || !endAt) {
+    return sendErrorResponse(res, 'Start and end times are required', 400);
+  }
+
+  const startDate = new Date(startAt);
+  const endDate = new Date(endAt);
+
+  if (endDate <= startDate) {
+    return sendErrorResponse(res, 'End time must be after start time', 400);
+  }
+
+  // Get blueprint
+  const blueprint = getModuleBlueprint(moduleId);
+  if (!blueprint) {
+    return sendErrorResponse(res, `Invalid module: ${moduleId}`, 400);
+  }
+
+  // Check QDB sufficiency
+  const sufficiency = await checkQDBSufficiency(moduleId, examType);
+  if (!sufficiency.sufficient) {
+    return sendErrorResponse(res, sufficiency.error, 400, {
+      insufficientCategories: sufficiency.insufficientCategories,
+      categoryDetails: sufficiency.categoryDetails
+    });
+  }
+
+  // Get next exam sequence
+  const examSequence = await Exam.getNextExamSequence(moduleId, examType);
+
+  // Select questions
+  const selection = await selectQuestionsForExam(moduleId, examType, examSequence);
+  if (!selection.success) {
+    return sendErrorResponse(res, selection.error, 400);
+  }
+
+  // Generate exam title
+  const title = generateExamTitle(moduleId, examType, examSequence);
+
+  // Get total questions and time from blueprint
+  const totalQuestions = getTotalMcqCount(moduleId);
+  const totalTimeMinutes = getTotalTimeMinutes(moduleId);
+  const categoryBreakdown = getCategoryBreakdown(moduleId);
+
+  // Create exam
+  const exam = new Exam({
+    title,
+    description: `${blueprint.name} - ${examType === 'basic' ? 'Basic' : 'Type'} Examination`,
+    subject: blueprint.shortName,
+
+    // Module-driven fields
+    moduleId,
+    moduleName: blueprint.name,
+    examType,
+    paperQuestionIds: selection.questionIds,
+    blueprintTotalQuestions: totalQuestions,
+    blueprintTotalTimeMinutes: totalTimeMinutes,
+    categoryBreakdown,
+    examSequence,
+    isModuleDriven: true,
+    examStatus: 'scheduled',
+    startAt: startDate,
+    endAt: endDate,
+
+    // Legacy fields for compatibility
+    type: 'final',
+    duration: totalTimeMinutes,
+    totalMarks: totalQuestions,
+    passingMarks: Math.ceil(totalQuestions * 0.75),
+    questions: selection.questionIds.map((qId, index) => ({
+      question: qId,
+      marks: 1,
+      negativeMarks: 0,
+      order: index + 1
+    })),
+    schedule: {
+      startTime: startDate,
+      endTime: endDate
+    },
+    settings: {
+      randomizeQuestions: true,
+      randomizeOptions: true,
+      showResults: true,
+      showCorrectAnswers: false,
+      allowReview: true,
+      allowBackNavigation: true,
+      autoSubmit: true
+    },
+    status: 'active',
+    createdBy: user._id
+  });
+
+  await exam.save();
+
+  // Mark questions as used
+  await Question.bulkMarkAsUsed(
+    selection.questionIds,
+    exam._id,
+    examType,
+    examSequence,
+    user._id,
+    user.name
+  );
+
+  sendSuccessResponse(res, 'Exam created successfully', {
+    exam: {
+      _id: exam._id,
+      title: exam.title,
+      moduleId: exam.moduleId,
+      moduleName: exam.moduleName,
+      examType: exam.examType,
+      totalQuestions: exam.blueprintTotalQuestions,
+      totalTimeMinutes: exam.blueprintTotalTimeMinutes,
+      startAt: exam.startAt,
+      endAt: exam.endAt,
+      examSequence: exam.examSequence,
+      examStatus: exam.examStatus,
+      categoryBreakdown: exam.categoryBreakdown
+    }
+  }, 201);
+});
+
+/**
+ * Get all module-driven exams
+ * GET /api/module-exams
+ */
+export const getModuleExams = asyncHandler(async (req, res) => {
+  const { status, moduleId, examType, page = 1, limit = 20 } = req.query;
+  const { user } = req;
+
+  const query = { isModuleDriven: true };
+
+  if (status) {
+    query.examStatus = status;
+  }
+  if (moduleId) {
+    query.moduleId = moduleId;
+  }
+  if (examType) {
+    query.examType = examType;
+  }
+
+  // Instructors only see their own exams
+  if (user.role === 'instructor') {
+    query.createdBy = user._id;
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const [exams, total] = await Promise.all([
+    Exam.find(query)
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .select('-questions -paperQuestionIds'),
+    Exam.countDocuments(query)
+  ]);
+
+  sendSuccessResponse(res, 'Module exams retrieved successfully', {
+    exams,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      pages: Math.ceil(total / parseInt(limit))
+    }
+  });
+});
+
+/**
+ * Get module exam by ID
+ * GET /api/module-exams/:id
+ */
+export const getModuleExamById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { user } = req;
+
+  const exam = await Exam.findById(id)
+    .populate('createdBy', 'name email')
+    .populate('assignedCandidateIds', 'name email');
+
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  if (!exam.isModuleDriven) {
+    return sendErrorResponse(res, 'This is not a module-driven exam', 400);
+  }
+
+  // Check access rights
+  if (user.role === 'instructor' && exam.createdBy._id.toString() !== user._id.toString()) {
+    return sendErrorResponse(res, 'Access denied', 403);
+  }
+
+  // Get attempt statistics
+  const attemptStats = await CandidateAttempt.aggregate([
+    { $match: { examId: exam._id } },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const statsMap = {};
+  attemptStats.forEach(s => { statsMap[s._id] = s.count; });
+
+  sendSuccessResponse(res, 'Module exam retrieved successfully', {
+    exam,
+    attemptStats: {
+      notStarted: statsMap.not_started || 0,
+      inProgress: statsMap.in_progress || 0,
+      paused: statsMap.paused || 0,
+      completed: statsMap.completed || 0,
+      quit: statsMap.quit || 0,
+      timeout: statsMap.timeout || 0,
+      blockedLate: statsMap.blocked_late || 0
+    }
+  });
+});
+
+/**
+ * Assign candidates to an exam
+ * POST /api/module-exams/:id/assign
+ */
+export const assignCandidates = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { candidateIds } = req.body;
+  const { user } = req;
+
+  if (!candidateIds || !Array.isArray(candidateIds) || candidateIds.length === 0) {
+    return sendErrorResponse(res, 'Candidate IDs array is required', 400);
+  }
+
+  const exam = await Exam.findById(id);
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  if (!exam.isModuleDriven) {
+    return sendErrorResponse(res, 'This endpoint is only for module-driven exams', 400);
+  }
+
+  // Check access rights
+  if (user.role === 'instructor' && exam.createdBy.toString() !== user._id.toString()) {
+    return sendErrorResponse(res, 'Access denied', 403);
+  }
+
+  // Verify all candidates exist and are students
+  const candidates = await User.find({
+    _id: { $in: candidateIds },
+    role: 'student'
+  });
+
+  if (candidates.length !== candidateIds.length) {
+    return sendErrorResponse(res, 'Some candidate IDs are invalid or not students', 400);
+  }
+
+  // Add new candidates
+  const existingIds = new Set(exam.assignedCandidateIds.map(id => id.toString()));
+  const newCandidateIds = candidateIds.filter(id => !existingIds.has(id.toString()));
+
+  exam.assignedCandidateIds.push(...newCandidateIds);
+  await exam.save();
+
+  // Create CandidateAttempt records
+  const attemptPromises = newCandidateIds.map(candidateId =>
+    CandidateAttempt.findOneAndUpdate(
+      { examId: exam._id, candidateId },
+      {
+        examId: exam._id,
+        candidateId,
+        status: 'not_started',
+        createdBy: user._id
+      },
+      { upsert: true, new: true }
+    )
+  );
+
+  await Promise.all(attemptPromises);
+
+  sendSuccessResponse(res, 'Candidates assigned successfully', {
+    assignedCount: newCandidateIds.length,
+    totalAssigned: exam.assignedCandidateIds.length
+  });
+});
+
+/**
+ * Get consolidated results for an exam
+ * GET /api/module-exams/:id/consolidated-result
+ */
+export const getConsolidatedResult = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { user } = req;
+
+  const exam = await Exam.findById(id);
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  // Check access rights
+  if (user.role === 'instructor' && exam.createdBy.toString() !== user._id.toString()) {
+    return sendErrorResponse(res, 'Access denied', 403);
+  }
+
+  const results = await CandidateAttempt.getConsolidatedResults(exam._id);
+
+  sendSuccessResponse(res, 'Consolidated results retrieved successfully', {
+    exam: {
+      _id: exam._id,
+      title: exam.title,
+      moduleId: exam.moduleId,
+      moduleName: exam.moduleName,
+      examType: exam.examType,
+      startAt: exam.startAt,
+      endAt: exam.endAt
+    },
+    results
+  });
+});
+
+/**
+ * Get consolidated results as PDF
+ * GET /api/module-exams/:id/consolidated-result.pdf
+ */
+export const getConsolidatedResultPDF = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { user } = req;
+
+  const exam = await Exam.findById(id);
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  // Check access rights
+  if (user.role === 'instructor' && exam.createdBy.toString() !== user._id.toString()) {
+    return sendErrorResponse(res, 'Access denied', 403);
+  }
+
+  const attempts = await CandidateAttempt.find({
+    examId: exam._id,
+    status: { $in: ['completed', 'quit', 'timeout'] }
+  }).populate('candidateId', 'name email');
+
+  const stats = calculateExamStatistics(attempts);
+
+  const pdfBuffer = await generateConsolidatedResultPDF(exam, attempts, stats);
+
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': `attachment; filename="consolidated_results_${exam._id}.pdf"`,
+    'Content-Length': pdfBuffer.length
+  });
+
+  res.send(pdfBuffer);
+});
+
+/**
+ * End an exam
+ * POST /api/module-exams/:id/end
+ */
+export const endModuleExam = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { user } = req;
+
+  const exam = await Exam.findById(id);
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  if (exam.examStatus === 'ended' || exam.examStatus === 'archived') {
+    return sendErrorResponse(res, 'Exam has already ended', 400);
+  }
+
+  // Get questions for result calculation
+  const questions = await Question.find({
+    _id: { $in: exam.paperQuestionIds }
+  });
+
+  // Force submit all active attempts
+  const activeAttempts = await CandidateAttempt.find({
+    examId: exam._id,
+    status: { $in: ['in_progress', 'paused'] }
+  });
+
+  for (const attempt of activeAttempts) {
+    await attempt.submit(questions, 'force_submit');
+  }
+
+  // Update exam status
+  exam.examStatus = 'ended';
+  await exam.save();
+
+  // Apply 5% question rotation
+  if (!exam.questionsRested) {
+    const rotationResult = await processQuestionsAfterExam(
+      exam.paperQuestionIds,
+      exam._id,
+      exam.examType,
+      exam.examSequence,
+      user._id,
+      user.name
+    );
+
+    exam.questionsRested = true;
+    exam.restedQuestionIds = rotationResult.restedQuestionIds;
+    await exam.save();
+  }
+
+  sendSuccessResponse(res, 'Exam ended successfully', {
+    forceSubmittedCount: activeAttempts.length,
+    examStatus: exam.examStatus
+  });
+});
+
+/**
+ * Get module exam statistics
+ * GET /api/module-exams/:id/stats
+ */
+export const getModuleExamStats = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const exam = await Exam.findById(id);
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  const attempts = await CandidateAttempt.find({ examId: exam._id });
+  const stats = calculateExamStatistics(attempts);
+
+  sendSuccessResponse(res, 'Exam stats retrieved successfully', {
+    exam: {
+      _id: exam._id,
+      title: exam.title,
+      moduleId: exam.moduleId,
+      examType: exam.examType,
+      examStatus: exam.examStatus,
+      totalQuestions: exam.blueprintTotalQuestions,
+      totalTimeMinutes: exam.blueprintTotalTimeMinutes
+    },
+    stats,
+    assignedCount: exam.assignedCandidateIds.length,
+    attemptBreakdown: {
+      notStarted: attempts.filter(a => a.status === 'not_started').length,
+      inProgress: attempts.filter(a => a.status === 'in_progress').length,
+      paused: attempts.filter(a => a.status === 'paused').length,
+      completed: attempts.filter(a => a.status === 'completed').length,
+      quit: attempts.filter(a => a.status === 'quit').length,
+      timeout: attempts.filter(a => a.status === 'timeout').length,
+      blockedLate: attempts.filter(a => a.status === 'blocked_late').length
+    }
+  });
+});
+
 export default {
+  // Legacy exam functions
   getAllExams,
   getExamById,
   createExam,
@@ -555,5 +1087,16 @@ export default {
   getStudentExamHistory,
   publishExam,
   archiveExam,
-  updateExamStatus
+  updateExamStatus,
+  // Module-driven exam functions
+  getExamModules,
+  checkSufficiency,
+  createModuleExam,
+  getModuleExams,
+  getModuleExamById,
+  assignCandidates,
+  getConsolidatedResult,
+  getConsolidatedResultPDF,
+  endModuleExam,
+  getModuleExamStats
 };
