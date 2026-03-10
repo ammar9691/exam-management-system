@@ -622,6 +622,14 @@ export const createModuleExam = asyncHandler(async (req, res) => {
   const startDate = new Date(startAt);
   const endDate = new Date(endAt);
 
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    return sendErrorResponse(res, 'Invalid date format for start or end time', 400);
+  }
+
+  if (startDate < new Date()) {
+    return sendErrorResponse(res, 'Start time must be in the future', 400);
+  }
+
   if (endDate <= startDate) {
     return sendErrorResponse(res, 'End time must be after start time', 400);
   }
@@ -650,11 +658,17 @@ export const createModuleExam = asyncHandler(async (req, res) => {
     return sendErrorResponse(res, selection.error, 400);
   }
 
+  // Validate selection has expected question count
+  const expectedCount = getTotalMcqCount(moduleId);
+  if (selection.questionIds.length !== expectedCount) {
+    return sendErrorResponse(res, `Question selection mismatch. Expected ${expectedCount}, got ${selection.questionIds.length}`, 500);
+  }
+
   // Generate exam title
   const title = generateExamTitle(moduleId, examType, examSequence);
 
   // Get total questions and time from blueprint
-  const totalQuestions = getTotalMcqCount(moduleId);
+  const totalQuestions = expectedCount;
   const totalTimeMinutes = getTotalTimeMinutes(moduleId);
   const categoryBreakdown = getCategoryBreakdown(moduleId);
 
@@ -1001,8 +1015,14 @@ export const endModuleExam = asyncHandler(async (req, res) => {
     status: { $in: ['in_progress', 'paused'] }
   });
 
+  let submitErrors = 0;
   for (const attempt of activeAttempts) {
-    await attempt.submit(questions, 'force_submit');
+    try {
+      await attempt.submit(questions, 'force_submit');
+    } catch (err) {
+      console.error(`Failed to force-submit attempt ${attempt._id}:`, err.message);
+      submitErrors++;
+    }
   }
 
   // Update exam status
@@ -1035,6 +1055,238 @@ export const endModuleExam = asyncHandler(async (req, res) => {
  * Get module exam statistics
  * GET /api/module-exams/:id/stats
  */
+/**
+ * Get Question Paper Analysis (QPA) for an exam
+ * Analyzes per-question performance and flags questions answered incorrectly by >50% candidates
+ * GET /api/module-exams/:id/qpa
+ */
+export const getQuestionPaperAnalysis = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { user } = req;
+
+  const exam = await Exam.findById(id);
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  if (user.role === 'instructor' && exam.createdBy.toString() !== user._id.toString()) {
+    return sendErrorResponse(res, 'Access denied', 403);
+  }
+
+  // Get all completed attempts with answers
+  const attempts = await CandidateAttempt.find({
+    examId: exam._id,
+    status: { $in: ['completed', 'quit', 'timeout'] }
+  });
+
+  if (attempts.length === 0) {
+    return sendSuccessResponse(res, 'No completed attempts for QPA', {
+      exam: { _id: exam._id, title: exam.title, moduleId: exam.moduleId, moduleName: exam.moduleName },
+      totalCandidates: 0,
+      questions: [],
+      flaggedQuestions: [],
+      summary: null
+    });
+  }
+
+  // Get all questions in the exam paper
+  const questions = await Question.find({
+    _id: { $in: exam.paperQuestionIds }
+  }).select('serialNo questionText module category knowledgeLevel syllabusReference options analytics');
+
+  const totalCandidates = attempts.length;
+
+  // Analyze each question
+  const questionAnalysis = questions.map(question => {
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let unansweredCount = 0;
+    let totalTimeSpent = 0;
+    let timeCount = 0;
+
+    // Per-option selection counts
+    const optionSelections = {};
+    question.options.forEach(opt => {
+      optionSelections[opt._id.toString()] = { count: 0, text: opt.text, isCorrect: opt.isCorrect };
+    });
+
+    attempts.forEach(attempt => {
+      const answer = attempt.answers.find(
+        a => a.questionId.toString() === question._id.toString()
+      );
+
+      if (!answer || (!answer.selectedOptionId && !answer.selectedAnswer)) {
+        unansweredCount++;
+      } else if (answer.isCorrect) {
+        correctCount++;
+      } else {
+        incorrectCount++;
+      }
+
+      // Track option selections
+      if (answer?.selectedOptionId) {
+        const optId = answer.selectedOptionId.toString();
+        if (optionSelections[optId]) {
+          optionSelections[optId].count++;
+        }
+      }
+
+      // Track time spent
+      if (answer?.timeSpent > 0) {
+        totalTimeSpent += answer.timeSpent;
+        timeCount++;
+      }
+    });
+
+    const incorrectPercentage = totalCandidates > 0
+      ? ((incorrectCount + unansweredCount) / totalCandidates) * 100
+      : 0;
+
+    const correctPercentage = totalCandidates > 0
+      ? (correctCount / totalCandidates) * 100
+      : 0;
+
+    return {
+      questionId: question._id,
+      serialNo: question.serialNo,
+      questionText: question.questionText,
+      module: question.module,
+      category: question.category,
+      knowledgeLevel: question.knowledgeLevel,
+      syllabusReference: question.syllabusReference,
+      correctCount,
+      incorrectCount,
+      unansweredCount,
+      totalCandidates,
+      correctPercentage: Math.round(correctPercentage * 10) / 10,
+      incorrectPercentage: Math.round(incorrectPercentage * 10) / 10,
+      averageTimeSpent: timeCount > 0 ? Math.round(totalTimeSpent / timeCount) : 0,
+      isFlagged: incorrectPercentage > 50,
+      optionDistribution: Object.values(optionSelections)
+    };
+  });
+
+  // Sort: flagged first, then by incorrect percentage descending
+  questionAnalysis.sort((a, b) => {
+    if (a.isFlagged !== b.isFlagged) return b.isFlagged - a.isFlagged;
+    return b.incorrectPercentage - a.incorrectPercentage;
+  });
+
+  const flaggedQuestions = questionAnalysis.filter(q => q.isFlagged);
+
+  const summary = {
+    totalQuestions: questions.length,
+    totalCandidates,
+    flaggedCount: flaggedQuestions.length,
+    flaggedPercentage: Math.round((flaggedQuestions.length / questions.length) * 100 * 10) / 10,
+    averageCorrectPercentage: Math.round(
+      (questionAnalysis.reduce((sum, q) => sum + q.correctPercentage, 0) / questionAnalysis.length) * 10
+    ) / 10,
+    hardestQuestion: questionAnalysis.length > 0 ? {
+      serialNo: questionAnalysis[0].serialNo,
+      incorrectPercentage: questionAnalysis[0].incorrectPercentage
+    } : null,
+    easiestQuestion: questionAnalysis.length > 0 ? {
+      serialNo: questionAnalysis[questionAnalysis.length - 1].serialNo,
+      correctPercentage: questionAnalysis[questionAnalysis.length - 1].correctPercentage
+    } : null
+  };
+
+  sendSuccessResponse(res, 'Question Paper Analysis generated successfully', {
+    exam: {
+      _id: exam._id,
+      title: exam.title,
+      moduleId: exam.moduleId,
+      moduleName: exam.moduleName,
+      examType: exam.examType,
+      startAt: exam.startAt,
+      endAt: exam.endAt
+    },
+    totalCandidates,
+    questions: questionAnalysis,
+    flaggedQuestions,
+    summary
+  });
+});
+
+/**
+ * Get QPA as PDF
+ * GET /api/module-exams/:id/qpa.pdf
+ */
+export const getQuestionPaperAnalysisPDF = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { user } = req;
+
+  const exam = await Exam.findById(id);
+  if (!exam) {
+    return sendNotFoundResponse(res, 'Exam');
+  }
+
+  if (user.role === 'instructor' && exam.createdBy.toString() !== user._id.toString()) {
+    return sendErrorResponse(res, 'Access denied', 403);
+  }
+
+  const attempts = await CandidateAttempt.find({
+    examId: exam._id,
+    status: { $in: ['completed', 'quit', 'timeout'] }
+  });
+
+  const questions = await Question.find({
+    _id: { $in: exam.paperQuestionIds }
+  }).select('serialNo questionText module category knowledgeLevel options');
+
+  const totalCandidates = attempts.length;
+
+  // Build analysis data
+  const questionAnalysis = questions.map(question => {
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let unansweredCount = 0;
+
+    attempts.forEach(attempt => {
+      const answer = attempt.answers.find(
+        a => a.questionId.toString() === question._id.toString()
+      );
+      if (!answer || (!answer.selectedOptionId && !answer.selectedAnswer)) {
+        unansweredCount++;
+      } else if (answer.isCorrect) {
+        correctCount++;
+      } else {
+        incorrectCount++;
+      }
+    });
+
+    const incorrectPercentage = totalCandidates > 0
+      ? ((incorrectCount + unansweredCount) / totalCandidates) * 100
+      : 0;
+
+    return {
+      serialNo: question.serialNo,
+      questionText: question.questionText,
+      category: question.category,
+      knowledgeLevel: question.knowledgeLevel,
+      correctCount,
+      incorrectCount,
+      unansweredCount,
+      incorrectPercentage: Math.round(incorrectPercentage * 10) / 10,
+      isFlagged: incorrectPercentage > 50
+    };
+  });
+
+  questionAnalysis.sort((a, b) => b.incorrectPercentage - a.incorrectPercentage);
+
+  const { generateQPAPDF } = await import('../utils/pdfGenerator.js');
+  const pdfBuffer = await generateQPAPDF(exam, questionAnalysis, totalCandidates);
+
+  res.set({
+    'Content-Type': 'application/pdf',
+    'Content-Disposition': `attachment; filename="qpa_${exam._id}.pdf"`,
+    'Content-Length': pdfBuffer.length
+  });
+
+  res.send(pdfBuffer);
+});
+
 export const getModuleExamStats = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -1098,5 +1350,7 @@ export default {
   getConsolidatedResult,
   getConsolidatedResultPDF,
   endModuleExam,
-  getModuleExamStats
+  getModuleExamStats,
+  getQuestionPaperAnalysis,
+  getQuestionPaperAnalysisPDF
 };

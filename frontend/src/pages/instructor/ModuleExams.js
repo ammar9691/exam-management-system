@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import {
   Box,
   Paper,
@@ -48,7 +50,9 @@ import {
   CheckCircle,
   Error,
   Warning,
-  Schedule
+  Schedule,
+  Analytics,
+  Leaderboard
 } from '@mui/icons-material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -59,6 +63,9 @@ import moduleExamService from '../../services/moduleExamService';
 import userService from '../../services/userService';
 
 const ModuleExams = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const basePath = user?.role === 'admin' ? '/admin' : '/instructor';
   // State
   const [exams, setExams] = useState([]);
   const [modules, setModules] = useState([]);
@@ -179,7 +186,7 @@ const ModuleExams = () => {
 
   const handleOpenAssignDialog = async (exam) => {
     setSelectedExam(exam);
-    setSelectedStudents(exam.assignedCandidateIds?.map(c => c._id) || []);
+    setSelectedStudents(exam.assignedCandidateIds?.map(c => typeof c === 'object' ? c._id : c) || []);
     setAssignDialogOpen(true);
 
     try {
@@ -351,11 +358,23 @@ const ModuleExams = () => {
                         </IconButton>
                       </Tooltip>
                       {exam.examStatus === 'ended' && (
-                        <Tooltip title="Download Results">
-                          <IconButton size="small" onClick={() => handleDownloadConsolidated(exam._id)}>
-                            <PictureAsPdf fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        <>
+                          <Tooltip title="Consolidated Results">
+                            <IconButton size="small" color="primary" onClick={() => navigate(`${basePath}/module-exams/${exam._id}/results`)}>
+                              <Leaderboard fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Question Paper Analysis">
+                            <IconButton size="small" color="warning" onClick={() => navigate(`${basePath}/module-exams/${exam._id}/qpa`)}>
+                              <Analytics fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Download Results PDF">
+                            <IconButton size="small" onClick={() => handleDownloadConsolidated(exam._id)}>
+                              <PictureAsPdf fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </>
                       )}
                       {['scheduled', 'active'].includes(exam.examStatus) && (
                         <Tooltip title="End Exam">

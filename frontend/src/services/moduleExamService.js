@@ -190,6 +190,26 @@ const moduleExamService = {
     return response.data;
   },
 
+  // ============ QPA (Question Paper Analysis) ============
+
+  /**
+   * Get Question Paper Analysis for an exam
+   */
+  getQPA: async (examId) => {
+    const response = await api.get(`${BASE_URL}/${examId}/qpa`);
+    return response.data;
+  },
+
+  /**
+   * Download QPA PDF
+   */
+  downloadQPAPDF: async (examId) => {
+    const response = await api.get(`${BASE_URL}/${examId}/qpa.pdf`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
   // ============ HELPER FUNCTIONS ============
 
   /**

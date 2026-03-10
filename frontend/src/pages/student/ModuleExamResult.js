@@ -264,7 +264,7 @@ const ModuleExamResult = () => {
             <Grid item xs={6} sm={4} md={2}>
               <Card variant="outlined" sx={{ textAlign: 'center', p: 2 }}>
                 <Typography variant="h4" color="text.primary" fontWeight="bold">
-                  {formatTime(result.totalTimeSpentSeconds || activeTimeSeconds || 0)}
+                  {formatTime(result.totalTimeSpentSeconds ?? activeTimeSeconds ?? 0)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Time Spent

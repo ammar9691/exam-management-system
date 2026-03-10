@@ -219,7 +219,38 @@ export const saveAnswer = asyncHandler(async (req, res) => {
       _id: { $in: exam.paperQuestionIds }
     });
     await attempt.submit(questions, 'auto_timeout');
+
+    // Check if all candidates completed — trigger question rotation
+    const allCompleted = await CandidateAttempt.allCandidatesCompleted(
+      exam._id,
+      exam.assignedCandidateIds
+    );
+    if (allCompleted && !exam.questionsRested) {
+      const claimed = await Exam.findOneAndUpdate(
+        { _id: exam._id, questionsRested: { $ne: true } },
+        { $set: { questionsRested: true } },
+        { new: true }
+      );
+      if (claimed) {
+        const rotationResult = await processQuestionsAfterExam(
+          exam.paperQuestionIds, exam._id, exam.examType,
+          exam.examSequence, user._id, user.name
+        );
+        claimed.restedQuestionIds = rotationResult.restedQuestionIds;
+        claimed.examStatus = 'ended';
+        await claimed.save();
+      }
+    }
+
     return sendErrorResponse(res, 'Time expired. Exam has been auto-submitted.', 400);
+  }
+
+  // Validate question belongs to this exam's paper
+  const isQuestionInExam = exam.paperQuestionIds.some(
+    id => id.toString() === questionId
+  );
+  if (!isQuestionInExam) {
+    return sendErrorResponse(res, 'Question does not belong to this exam', 400);
   }
 
   // Get the question to validate
@@ -335,6 +366,34 @@ export const heartbeat = asyncHandler(async (req, res) => {
     });
     await attempt.submit(questions, 'auto_timeout');
 
+    // Check if all candidates completed — trigger question rotation
+    const allCompleted = await CandidateAttempt.allCandidatesCompleted(
+      exam._id,
+      exam.assignedCandidateIds
+    );
+
+    if (allCompleted && !exam.questionsRested) {
+      const claimed = await Exam.findOneAndUpdate(
+        { _id: exam._id, questionsRested: { $ne: true } },
+        { $set: { questionsRested: true } },
+        { new: true }
+      );
+
+      if (claimed) {
+        const rotationResult = await processQuestionsAfterExam(
+          exam.paperQuestionIds,
+          exam._id,
+          exam.examType,
+          exam.examSequence,
+          user._id,
+          user.name
+        );
+        claimed.restedQuestionIds = rotationResult.restedQuestionIds;
+        claimed.examStatus = 'ended';
+        await claimed.save();
+      }
+    }
+
     return sendSuccessResponse(res, 'Time expired. Exam auto-submitted.', {
       status: 'timeout',
       shouldStop: true,
@@ -441,20 +500,28 @@ export const submitExam = asyncHandler(async (req, res) => {
   );
 
   if (allCompleted && !exam.questionsRested) {
-    // Apply 5% question rotation
-    const rotationResult = await processQuestionsAfterExam(
-      exam.paperQuestionIds,
-      exam._id,
-      exam.examType,
-      exam.examSequence,
-      user._id,
-      user.name
+    // Atomically claim the rotation to prevent race condition
+    const claimed = await Exam.findOneAndUpdate(
+      { _id: exam._id, questionsRested: { $ne: true } },
+      { $set: { questionsRested: true } },
+      { new: true }
     );
 
-    exam.questionsRested = true;
-    exam.restedQuestionIds = rotationResult.restedQuestionIds;
-    exam.examStatus = 'ended';
-    await exam.save();
+    if (claimed) {
+      // Apply 5% question rotation
+      const rotationResult = await processQuestionsAfterExam(
+        exam.paperQuestionIds,
+        exam._id,
+        exam.examType,
+        exam.examSequence,
+        user._id,
+        user.name
+      );
+
+      claimed.restedQuestionIds = rotationResult.restedQuestionIds;
+      claimed.examStatus = 'ended';
+      await claimed.save();
+    }
   }
 
   sendSuccessResponse(res, 'Exam submitted successfully', {

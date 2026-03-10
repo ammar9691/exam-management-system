@@ -15,7 +15,9 @@ import {
   getConsolidatedResult,
   getConsolidatedResultPDF,
   endModuleExam,
-  getModuleExamStats
+  getModuleExamStats,
+  getQuestionPaperAnalysis,
+  getQuestionPaperAnalysisPDF
 } from '../controllers/examController.js';
 import {
   getMyExams,
@@ -107,6 +109,20 @@ router.post('/:id/end', instructorOrAdmin, endModuleExam);
  * @access  Instructor, Admin
  */
 router.get('/:id/stats', instructorOrAdmin, getModuleExamStats);
+
+/**
+ * @route   GET /api/module-exams/:id/qpa
+ * @desc    Get Question Paper Analysis for an exam
+ * @access  Instructor, Admin
+ */
+router.get('/:id/qpa', instructorOrAdmin, getQuestionPaperAnalysis);
+
+/**
+ * @route   GET /api/module-exams/:id/qpa.pdf
+ * @desc    Get QPA as PDF
+ * @access  Instructor, Admin
+ */
+router.get('/:id/qpa.pdf', instructorOrAdmin, getQuestionPaperAnalysisPDF);
 
 // ============ STUDENT ATTEMPT ROUTES ============
 

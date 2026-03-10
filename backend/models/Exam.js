@@ -565,15 +565,12 @@ examSchema.statics.getStatistics = function(filters = {}) {
 
 /**
  * Get the next exam sequence number for a module+examType combination
+ * Uses Counter model for atomic increment to prevent race conditions
  */
 examSchema.statics.getNextExamSequence = async function(moduleId, examType) {
-  const lastExam = await this.findOne({
-    moduleId,
-    examType,
-    isModuleDriven: true
-  }).sort({ examSequence: -1 }).select('examSequence');
-
-  return lastExam ? lastExam.examSequence + 1 : 1;
+  const Counter = (await import('./Counter.js')).default;
+  const counterId = `exam_seq_${moduleId}_${examType}`;
+  return Counter.getNextSequence(counterId);
 };
 
 /**

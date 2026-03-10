@@ -112,6 +112,12 @@ const userSchema = new mongoose.Schema({
       default: false
     }
   },
+  // Module access restriction for instructors/knowledge examiners (PCAA Req 11)
+  assignedModules: [{
+    type: String,
+    trim: true
+  }],
+
   stats: {
     totalExamsTaken: {
       type: Number,

@@ -78,6 +78,7 @@ const ModuleExamRunner = () => {
   // Refs
   const heartbeatInterval = useRef(null);
   const timerInterval = useRef(null);
+  const submittingRef = useRef(false);
 
   // Start exam on mount
   useEffect(() => {
@@ -161,7 +162,9 @@ const ModuleExamRunner = () => {
         const data = response.data;
 
         setIsConnected(true);
-        setRemainingTime(data.remainingTimeSeconds);
+        if (typeof data.remainingTimeSeconds === 'number') {
+          setRemainingTime(data.remainingTimeSeconds);
+        }
         setIsPaused(data.isPaused);
 
         if (data.shouldStop) {
@@ -169,6 +172,15 @@ const ModuleExamRunner = () => {
           handleExamEnded(data.status);
         }
       } catch (err) {
+        const status = err.response?.status;
+        if (status === 401 || status === 403) {
+          // Auth error — stop heartbeat and redirect
+          if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
+          if (timerInterval.current) clearInterval(timerInterval.current);
+          toast.error(err.response?.data?.message || 'Session expired');
+          navigate('/student/dashboard', { replace: true });
+          return;
+        }
         setIsConnected(false);
         console.error('Heartbeat failed:', err);
       }
@@ -264,6 +276,8 @@ const ModuleExamRunner = () => {
   };
 
   const handleSubmit = async (isAutoSubmit = false) => {
+    if (submittingRef.current) return; // Prevent double-submit from timer + heartbeat race
+    submittingRef.current = true;
     setSubmitting(true);
     setSubmitDialogOpen(false);
 
@@ -276,6 +290,7 @@ const ModuleExamRunner = () => {
       navigate(`/student/module-exam/result/${attemptId}`, { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit exam');
+      submittingRef.current = false;
       setSubmitting(false);
       // Restart heartbeat if submission failed
       if (!isAutoSubmit) {

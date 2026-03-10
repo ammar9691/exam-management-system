@@ -479,6 +479,11 @@ candidateAttemptSchema.methods.toggleFlag = function(questionId) {
  * @param {string} submissionType - 'manual', 'auto_timeout', or 'force_submit'
  */
 candidateAttemptSchema.methods.submit = function(questions, submissionType = 'manual') {
+  // Guard against double submission
+  if (['completed', 'quit', 'timeout', 'blocked_late'].includes(this.status)) {
+    return Promise.resolve(this);
+  }
+
   const now = new Date();
 
   // Finalize timing
@@ -694,27 +699,34 @@ candidateAttemptSchema.statics.findStaleInProgress = async function() {
  */
 candidateAttemptSchema.statics.autoPauseStale = async function() {
   const threshold = new Date(Date.now() - HEARTBEAT_TIMEOUT_SECONDS * 1000);
+  const now = new Date();
 
+  // Use aggregation pipeline update to reference document fields
   const result = await this.updateMany(
     {
       status: 'in_progress',
       lastHeartbeatAt: { $lt: threshold },
       isPaused: false
     },
-    {
-      $set: {
-        isPaused: true,
-        pauseStartedAt: new Date(),
-        status: 'paused'
-      },
-      $push: {
-        heartbeatLog: {
-          timestamp: new Date(),
-          type: 'disconnect',
-          activeTimeAtPoint: '$activeTimeSeconds'
+    [
+      {
+        $set: {
+          isPaused: true,
+          pauseStartedAt: now,
+          status: 'paused',
+          heartbeatLog: {
+            $concatArrays: [
+              '$heartbeatLog',
+              [{
+                timestamp: now,
+                type: 'disconnect',
+                activeTimeAtPoint: '$activeTimeSeconds'
+              }]
+            ]
+          }
         }
       }
-    }
+    ]
   );
 
   return result.modifiedCount;

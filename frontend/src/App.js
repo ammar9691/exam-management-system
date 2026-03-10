@@ -38,6 +38,7 @@ import InstructorGrading from './pages/instructor/Grading';
 import ExamMonitor from './pages/instructor/ExamMonitor';
 import ModuleExams from './pages/instructor/ModuleExams';
 import ConsolidatedResults from './pages/instructor/ConsolidatedResults';
+import QuestionPaperAnalysis from './pages/instructor/QuestionPaperAnalysis';
 
 // Module Exam Pages (Student)
 import ModuleExamRunner from './pages/student/ModuleExamRunner';
@@ -111,6 +112,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <ConsolidatedResults />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/module-exams/:examId/qpa"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <QuestionPaperAnalysis />
                 </ProtectedRoute>
               }
             />
@@ -222,6 +231,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['instructor']}>
                   <ConsolidatedResults />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instructor/module-exams/:examId/qpa"
+              element={
+                <ProtectedRoute allowedRoles={['instructor']}>
+                  <QuestionPaperAnalysis />
                 </ProtectedRoute>
               }
             />

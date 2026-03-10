@@ -677,15 +677,21 @@ questionSchema.statics.findEligibleForExam = async function(module, category, ex
     status: 'approved',
     module,
     category,
-    $or: [
-      { isRested: false },
-      { isRested: true, restedUntil: { $lte: now } } // Rest period expired
-    ],
-    $or: [
-      { lastUsedExamType: { $ne: examType } }, // Different exam type
-      { lastUsedExamSequence: { $lte: minSequence } }, // Past cooldown
-      { lastUsedExamSequence: { $exists: false } }, // Never used
-      { lastUsedExamSequence: 0 } // Never used (explicit)
+    $and: [
+      {
+        $or: [
+          { isRested: false },
+          { isRested: true, restedUntil: { $lte: now } } // Rest period expired
+        ]
+      },
+      {
+        $or: [
+          { lastUsedExamType: { $ne: examType } }, // Different exam type
+          { lastUsedExamSequence: { $lte: minSequence } }, // Past cooldown
+          { lastUsedExamSequence: { $exists: false } }, // Never used
+          { lastUsedExamSequence: 0 } // Never used (explicit)
+        ]
+      }
     ]
   });
 };
@@ -749,15 +755,21 @@ questionSchema.statics.countTotalEligible = async function(module, examType, cur
   return this.countDocuments({
     status: 'approved',
     module,
-    $or: [
-      { isRested: false },
-      { isRested: true, restedUntil: { $lte: now } }
-    ],
-    $or: [
-      { lastUsedExamType: { $ne: examType } },
-      { lastUsedExamSequence: { $lte: minSequence } },
-      { lastUsedExamSequence: { $exists: false } },
-      { lastUsedExamSequence: 0 }
+    $and: [
+      {
+        $or: [
+          { isRested: false },
+          { isRested: true, restedUntil: { $lte: now } }
+        ]
+      },
+      {
+        $or: [
+          { lastUsedExamType: { $ne: examType } },
+          { lastUsedExamSequence: { $lte: minSequence } },
+          { lastUsedExamSequence: { $exists: false } },
+          { lastUsedExamSequence: 0 }
+        ]
+      }
     ]
   });
 };

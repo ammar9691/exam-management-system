@@ -61,6 +61,11 @@ export const getAllQuestions = asyncHandler(async (req, res) => {
     ];
   }
 
+  // Module-scoped access: restrict to assigned modules (PCAA Req 11)
+  if (req.allowedModules && req.allowedModules.length > 0 && !filter.module) {
+    filter.module = { $in: req.allowedModules };
+  }
+
   const options = {
     searchFields: ['question', 'serialNo', 'syllabusReference'],
     allowedFilters: ['module', 'category', 'difficulty', 'knowledgeLevel', 'status', 'type', 'createdBy'],

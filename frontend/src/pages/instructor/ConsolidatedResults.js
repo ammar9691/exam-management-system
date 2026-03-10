@@ -34,7 +34,8 @@ import {
   Cancel,
   TrendingUp,
   TrendingDown,
-  People
+  People,
+  Analytics
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import Layout from '../../components/layout/Layout';
@@ -149,6 +150,14 @@ const ConsolidatedResults = () => {
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={<Analytics />}
+              onClick={() => navigate(`${window.location.pathname.replace('/results', '/qpa')}`)}
+            >
+              QPA
+            </Button>
             <Button
               variant="outlined"
               startIcon={<Print />}
